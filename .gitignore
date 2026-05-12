@@ -1,0 +1,22 @@
+# Build output
+bin/
+obj/
+*.exe
+*.dll
+*.pdb
+
+# Except SDK DLLs
+!lib/ControlCAN.dll
+
+# Log files
+*.log
+
+# IDE
+.vs/
+*.user
+*.suo
+.vscode/
+
+# OS
+Thumbs.db
+Desktop.ini
