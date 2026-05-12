@@ -257,10 +257,17 @@ namespace CANDebugTool.Services
 
         public bool Transmit(CanMessage message)
         {
-            if (!IsDeviceOpened || !IsCanStarted) return false;
+            if (!IsDeviceOpened) { LogService.Log("Transmit: 设备未打开", LogLevel.Warning); return false; }
+            if (!IsCanStarted) { LogService.Log("Transmit: CAN 未启动", LogLevel.Warning); return false; }
 
             try
             {
+                // 确保 Data 数组固定为 8 字节（DLL 要求）
+                byte[] paddedData = new byte[8];
+                int copyLen = Math.Min(message.Data?.Length ?? 0, 8);
+                if (message.Data != null)
+                    Array.Copy(message.Data, paddedData, copyLen);
+
                 var obj = new VCI_CAN_OBJ
                 {
                     ID = message.Id,
@@ -268,20 +275,26 @@ namespace CANDebugTool.Services
                     RemoteFlag = (byte)(message.IsRemote ? 1 : 0),
                     ExternFlag = (byte)(message.IsExtended ? 1 : 0),
                     DataLen = message.DataLen,
-                    Data = message.Data
+                    Data = paddedData
                 };
 
                 uint result = ControlCanApi.VCI_Transmit(DeviceTypeId, DeviceIndex, CanChannel, ref obj, 1);
+                LogService.Log($"VCI_Transmit ID=0x{message.Id:X} 返回: {result}", LogLevel.Info);
                 return result == 1;
             }
-            catch { return false; }
+            catch (Exception ex) { LogService.Log($"Transmit异常: {ex.Message}", LogLevel.Error); return false; }
         }
 
         private void StartReceive()
         {
-            if (_receiveTask != null && !_receiveTask.IsCompleted) return;
+            if (_receiveTask != null && !_receiveTask.IsCompleted)
+            {
+                LogService.Log("Receive task already running", LogLevel.Warning);
+                return;
+            }
             _receiveCts = new CancellationTokenSource();
             _receiveTask = Task.Run(() => ReceiveLoop(_receiveCts.Token));
+            LogService.Log("ReceiveLoop 已启动", LogLevel.Info);
         }
 
         private void StopReceive()
@@ -296,6 +309,10 @@ namespace CANDebugTool.Services
         private void ReceiveLoop(CancellationToken token)
         {
             var obj = new VCI_CAN_OBJ { Data = new byte[8] };
+            int receivedCount = 0;
+            long startTicks = DateTime.Now.Ticks;
+
+            LogService.Log("ReceiveLoop 开始运行", LogLevel.Info);
 
             while (!token.IsCancellationRequested)
             {
@@ -306,11 +323,15 @@ namespace CANDebugTool.Services
                     {
                         var msg = CanMessage.FromVciObj(obj, false);
                         OnMessageReceived?.Invoke(msg);
+                        receivedCount++;
+                        if (receivedCount == 1 || receivedCount % 100 == 0)
+                            LogService.Log($"已收到 {receivedCount} 帧", LogLevel.Info);
                     }
                 }
                 catch (OperationCanceledException) { break; }
-                catch { Thread.Sleep(10); }
+                catch (Exception ex) { LogService.Log($"Receive异常: {ex.Message}", LogLevel.Warning); Thread.Sleep(10); }
             }
+            LogService.Log($"ReceiveLoop 结束，共收到 {receivedCount} 帧", LogLevel.Info);
         }
 
         #endregion

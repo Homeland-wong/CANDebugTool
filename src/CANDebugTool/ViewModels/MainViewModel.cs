@@ -214,14 +214,26 @@ namespace CANDebugTool.ViewModels
 
         public bool SendMessage(CanMessage msg)
         {
-            if (_canService.Transmit(msg))
+            msg.TimestampUs = DateTime.Now.Ticks / 10;
+            bool sent = _canService.Transmit(msg);
+
+            if (sent)
             {
+                // 发送成功：绿色 + TX 计数
                 SentMessages.Insert(0, msg);
+                ReceivedMessages.Insert(0, msg);
                 TxCount++;
-                while (SentMessages.Count > 100) SentMessages.RemoveAt(SentMessages.Count - 1);
-                return true;
+                while (ReceivedMessages.Count > 2000)
+                    ReceivedMessages.RemoveAt(ReceivedMessages.Count - 1);
             }
-            return false;
+            else
+            {
+                // 发送失败也加入列表（红色），方便调试
+                ReceivedMessages.Insert(0, msg);
+                while (ReceivedMessages.Count > 2000)
+                    ReceivedMessages.RemoveAt(ReceivedMessages.Count - 1);
+            }
+            return sent;
         }
 
         public void Dispose() => _deviceScanTimer.Stop();
