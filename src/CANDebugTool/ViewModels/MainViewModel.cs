@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Windows;
@@ -70,6 +71,12 @@ namespace CANDebugTool.ViewModels
         public ObservableCollection<DeviceInfo> DeviceList { get; } = new();
         public ObservableCollection<CanMessage> ReceivedMessages { get; } = new();
         public ObservableCollection<CanMessage> SentMessages { get; } = new();
+
+        private long _uiUpdateStopwatch;
+        private readonly List<CanMessage> _pendingMessages = new();
+        private const long UiUpdateIntervalUs = 200000; // 200ms 批量更新 UI
+        private const int MaxDisplayMessages = 50;         // DataGrid 保留上限
+        private int _totalRx;
 
         public SendViewModel SendVM { get; }
         public ReceiveViewModel ReceiveViewModel { get; }
@@ -141,14 +148,42 @@ namespace CANDebugTool.ViewModels
             StatisticsVM.Classify(msg);
             _storageService.WriteMessage(msg);
 
-            Application.Current.Dispatcher.Invoke(() =>
+            _totalRx++;
+
+            lock (_pendingMessages)
             {
-                // 从上到下添加（旧在上，新在下）
-                ReceivedMessages.Add(msg);
-                RxCount++;
-                while (ReceivedMessages.Count > 2000)
-                    ReceivedMessages.RemoveAt(0);
-            });
+                _pendingMessages.Add(msg);
+            }
+
+            long now = msg.TimestampUs > 0 ? msg.TimestampUs : DateTime.Now.Ticks / 10;
+            if (now - _uiUpdateStopwatch < UiUpdateIntervalUs)
+                return;
+            _uiUpdateStopwatch = now;
+
+            List<CanMessage> batch;
+            lock (_pendingMessages)
+            {
+                if (_pendingMessages.Count == 0) return;
+                batch = new List<CanMessage>(_pendingMessages);
+                _pendingMessages.Clear();
+            }
+
+            // RxCount 立即更新，不靠 DataGrid 刷新
+            RxCount += batch.Count;
+
+            // 最低优先级：仅在空闲时刷新 DataGrid，不影响统计/曲线/按键
+            System.Windows.Application.Current.Dispatcher.BeginInvoke(() =>
+            {
+                foreach (var m in batch)
+                    ReceivedMessages.Add(m);
+
+                int excess = ReceivedMessages.Count - MaxDisplayMessages;
+                if (excess > 0)
+                {
+                    for (int i = 0; i < excess; i++)
+                        ReceivedMessages.RemoveAt(0);
+                }
+            }, System.Windows.Threading.DispatcherPriority.ContextIdle);
         }
 
         [RelayCommand]

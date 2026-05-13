@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using CANDebugTool.Models;
@@ -310,7 +311,9 @@ namespace CANDebugTool.Services
         {
             var obj = new VCI_CAN_OBJ { Data = new byte[8] };
             int receivedCount = 0;
-            long startTicks = DateTime.Now.Ticks;
+            int totalInBatch = 0;
+            var batchTimer = Stopwatch.StartNew();
+            var debugTimer = Stopwatch.StartNew();
 
             LogService.Log("ReceiveLoop 开始运行", LogLevel.Info);
 
@@ -318,18 +321,39 @@ namespace CANDebugTool.Services
             {
                 try
                 {
-                    uint count = ControlCanApi.VCI_Receive(DeviceTypeId, DeviceIndex, CanChannel, ref obj, 1, 100);
+                    uint count = ControlCanApi.VCI_Receive(DeviceTypeId, DeviceIndex, CanChannel, ref obj, 1, 10);
                     if (count > 0)
                     {
                         var msg = CanMessage.FromVciObj(obj, false);
                         OnMessageReceived?.Invoke(msg);
                         receivedCount++;
-                        if (receivedCount == 1 || receivedCount % 100 == 0)
-                            LogService.Log($"已收到 {receivedCount} 帧", LogLevel.Info);
+                        totalInBatch++;
+
+                        // 继续非阻塞收取，避免积压
+                        int burstCount = 0;
+                        while (!token.IsCancellationRequested)
+                        {
+                            uint more = ControlCanApi.VCI_Receive(DeviceTypeId, DeviceIndex, CanChannel, ref obj, 1, 0);
+                            if (more == 0) break;
+                            var moreMsg = CanMessage.FromVciObj(obj, false);
+                            OnMessageReceived?.Invoke(moreMsg);
+                            receivedCount++;
+                            totalInBatch++;
+                            burstCount++;
+                        }
+
+                    }
+
+                    // 每秒输出一次吞吐量日志
+                    if (debugTimer.ElapsedMilliseconds >= 1000)
+                    {
+                        LogService.Log($"ReceiveLoop: 吞吐 {totalInBatch} 帧/秒, 累计 {receivedCount}, 队列深 {GetReceiveCount()}", LogLevel.Info);
+                        totalInBatch = 0;
+                        debugTimer.Restart();
                     }
                 }
                 catch (OperationCanceledException) { break; }
-                catch (Exception ex) { LogService.Log($"Receive异常: {ex.Message}", LogLevel.Warning); Thread.Sleep(10); }
+                catch (Exception ex) { LogService.Log($"Receive异常: {ex.Message}, Stack: {ex.StackTrace}", LogLevel.Warning); Thread.Sleep(10); }
             }
             LogService.Log($"ReceiveLoop 结束，共收到 {receivedCount} 帧", LogLevel.Info);
         }

@@ -23,8 +23,8 @@ namespace CANDebugTool.Models
         /// <summary>数字显示配置列表 (序列化保存)</summary>
         public List<DigitalDisplay> DigitalDisplays { get; set; } = new();
 
-        /// <summary>计算规则配置列表 (序列化保存)</summary>
-        public List<CalcRuleConfig> CalcRuleConfigs { get; set; } = new();
+        /// <summary>计算值配置列表 (序列化保存)</summary>
+        public List<CalcValueConfig> CalcValueConfigs { get; set; } = new();
 
         /// <summary>CSV存储路径</summary>
         public string StorePath => System.IO.Path.Combine(WorkspacePath, "data.csv");

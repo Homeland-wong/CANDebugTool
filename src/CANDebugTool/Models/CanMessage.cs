@@ -41,11 +41,11 @@ namespace CANDebugTool.Models
 
         /// <summary>归类码 (12字节: ID 4 + Data 8)</summary>
         [ObservableProperty]
-        private byte[] _classifyCode = new byte[12];
+        private byte[] _classifyCode = new byte[12] { 0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF };
 
         /// <summary>归类码 Hex 显示</summary>
         [ObservableProperty]
-        private string _classifyCodeHex = "00 00 00 00 00 00 00 00 00 00 00 00";
+        private string _classifyCodeHex = "FF·FF·FF·FF·FF·FF·FF·FF·FF·FF·FF·FF";
 
         /// <summary>统计组号</summary>
         [ObservableProperty]

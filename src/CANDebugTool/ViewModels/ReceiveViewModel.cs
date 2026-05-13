@@ -82,10 +82,11 @@ namespace CANDebugTool.ViewModels
                     using var writer = new System.IO.StreamWriter(dialog.FileName);
 
                     // 功能需求第2条：序号、μs时间戳、归类码、统计组号
-                    writer.WriteLine("序号,μs时间戳,ID,方向,帧类型,DLC,数据,归类码,组号");
+                    writer.WriteLine("序号,μs时间戳,ID,方向,帧类型,DLC,字节1,字节2,字节3,字节4,字节5,字节6,字节7,字节8,归类码,组号");
 
                     foreach (var msg in _mainVM.ReceivedMessages)
                     {
+                        var d = msg.Data;
                         writer.WriteLine(
                             $"{msg.SequenceNumber}," +
                             $"{msg.TimestampUs}," +
@@ -93,7 +94,7 @@ namespace CANDebugTool.ViewModels
                             $"{msg.DirectionCn}," +
                             $"{msg.FrameTypeCn}," +
                             $"{msg.DataLen}," +
-                            $"{msg.DataHex}," +
+                            $"{d[0]:X2},{d[1]:X2},{d[2]:X2},{d[3]:X2},{d[4]:X2},{d[5]:X2},{d[6]:X2},{d[7]:X2}," +
                             $"{msg.ClassifyCodeHex}," +
                             $"{msg.GroupId}");
                     }

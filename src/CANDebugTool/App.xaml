@@ -15,6 +15,7 @@
             <converters:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibilityConverter"/>
             <converters:BoolToOpacityConverter x:Key="BoolToOpacityConverter"/>
             <converters:ClassifyModeToTextConverter x:Key="ClassifyModeToTextConverter"/>
+            <converters:CalcTypeToDisplayConverter x:Key="CalcTypeToDisplayConverter"/>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

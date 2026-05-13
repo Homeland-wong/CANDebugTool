@@ -130,7 +130,11 @@ namespace CANDebugTool.Services
                 return group;
             }
 
-            // 无规则匹配时，归类码保持默认
+            // 无规则匹配时，归类码置为全 0
+            for (int i = 0; i < 12; i++)
+                msg.ClassifyCode[i] = 0;
+            msg.ClassifyCodeHex = "00·00·00·00·00·00·00·00·00·00·00·00";
+            msg.GroupId = -1;
             return null;
         }
 

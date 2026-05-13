@@ -2,6 +2,7 @@ using System;
 using System.Globalization;
 using System.Windows;
 using System.Windows.Data;
+using CANDebugTool.Models;
 
 namespace CANDebugTool.Converters
 {
@@ -42,6 +43,18 @@ namespace CANDebugTool.Converters
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
             => value is string s && s == "归类";
+    }
+
+    /// <summary>
+    /// 计算值类型代码 → 中文显示名
+    /// </summary>
+    public class CalcTypeToDisplayConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+            => value is string s ? CalcValueConfig.TypeDisplayName(s) : value;
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+            => throw new NotImplementedException();
     }
 
     /// <summary>

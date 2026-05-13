@@ -1,5 +1,8 @@
+using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Linq;
 using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -13,10 +16,7 @@ namespace CANDebugTool.ViewModels
     {
         private readonly ClassificationService _svc;
 
-        /// <summary>归类统计组列表（按组号排序）</summary>
         public ObservableCollection<StatisticsGroup> Groups { get; } = new();
-
-        /// <summary>归类掩码规则列表</summary>
         public ObservableCollection<ClassificationRule> Rules { get; } = new();
 
         [ObservableProperty]
@@ -28,24 +28,33 @@ namespace CANDebugTool.ViewModels
         [ObservableProperty]
         private string _statusText = "待启动";
 
-        /// <summary>当前启用的规则列表（缓存用）</summary>
         private List<ClassificationRule> _activeRules = new();
+
+        // 批量刷新：收集最新 group 状态，定时投递到 UI
+        private readonly ConcurrentDictionary<int, StatisticsGroup> _pendingGroupUpdates = new();
+        private long _groupUpdateStopwatch;
+        private const long GroupUpdateIntervalTicks = 100 * 10000L; // 100ms
 
         public StatisticsViewModel()
         {
             _svc = ClassificationService.Instance;
             _svc.OnGroupUpdated += OnGroupUpdated;
+
+            // 定时兜底刷盘：确保统计组即使在消息低速/停止时也能刷新
+            var flushTimer = new System.Windows.Threading.DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(500)
+            };
+            flushTimer.Tick += (s, e) => FlushGroupUpdates();
+            flushTimer.Start();
         }
 
-        /// <summary>
-        /// 对报文执行归类
-        /// </summary>
         public void Classify(CanMessage msg)
         {
             _activeRules = Rules.Where(r => r.IsClassifyMode).ToList();
             if (_activeRules.Count == 0)
             {
-                msg.ClassifyCodeHex = "00·00·00·00·00·00·00·00·00·00·00·00";
+                msg.ClassifyCodeHex = "FF·FF·FF·FF·FF·FF·FF·FF·FF·FF·FF·FF";
                 msg.GroupId = -1;
                 return;
             }
@@ -54,45 +63,57 @@ namespace CANDebugTool.ViewModels
         }
 
         /// <summary>
-        /// 处理归类服务返回的更新事件
+        /// 接收线程回调 — 只更新缓存，不直接操作 UI
         /// </summary>
         private void OnGroupUpdated(StatisticsGroup updated)
         {
-            Application.Current.Dispatcher.Invoke(() =>
+            // 覆盖式存储最新状态
+            _pendingGroupUpdates[updated.GroupId] = updated;
+
+            // 每 50ms 批量刷新到 UI
+            long now = Stopwatch.GetTimestamp();
+            if (now - _groupUpdateStopwatch < GroupUpdateIntervalTicks)
+                return;
+            _groupUpdateStopwatch = now;
+
+            FlushGroupUpdates();
+        }
+
+        private void FlushGroupUpdates()
+        {
+            if (_pendingGroupUpdates.IsEmpty) return;
+
+            // 提取快照
+            var snapshot = _pendingGroupUpdates.Values.ToList();
+            _pendingGroupUpdates.Clear();
+
+            int count = snapshot.Count;
+            Application.Current.Dispatcher.BeginInvoke(() =>
             {
-                // 查找现有条目并更新
-                var existing = Groups.FirstOrDefault(g => g.GroupId == updated.GroupId);
-                if (existing != null)
+                foreach (var updated in snapshot)
                 {
-                    var idx = Groups.IndexOf(existing);
-                    Groups[idx] = updated;
-                }
-                else
-                {
-                    // 插入并保持组号排序
-                    int insertAt = 0;
-                    for (int i = 0; i < Groups.Count; i++)
+                    var existing = Groups.FirstOrDefault(g => g.GroupId == updated.GroupId);
+                    if (existing != null)
                     {
-                        if (Groups[i].GroupId < updated.GroupId)
-                            insertAt = i + 1;
+                        var idx = Groups.IndexOf(existing);
+                        Groups[idx] = updated;
                     }
-                    Groups.Insert(insertAt, updated);
+                    else
+                    {
+                        int insertAt = 0;
+                        for (int i = 0; i < Groups.Count; i++)
+                            if (Groups[i].GroupId < updated.GroupId) insertAt = i + 1;
+                        Groups.Insert(insertAt, updated);
+                    }
                 }
 
-                // 排序（按组号）
                 var sorted = Groups.OrderBy(g => g.GroupId).ToList();
                 for (int i = 0; i < sorted.Count; i++)
-                {
                     if (Groups[i] != sorted[i])
-                    {
-                        Groups.Clear();
-                        foreach (var g in sorted) Groups.Add(g);
-                        break;
-                    }
-                }
+                    { Groups.Clear(); foreach (var g in sorted) Groups.Add(g); break; }
 
                 StatusText = $"{Groups.Count} 组 | 总计 {Groups.Sum(g => g.Count)} 帧";
-            });
+            }); // Normal 优先级，优先于报文监控
         }
 
         [RelayCommand]
@@ -125,6 +146,24 @@ namespace CANDebugTool.ViewModels
         {
             if (rule != null)
                 _svc.ResetRuleGroups(rule.Name);
+        }
+
+        [RelayCommand]
+        private void AddCalcConfig(ClassificationRule rule)
+        {
+            if (rule != null && rule.CalcConfigs.Count < 8)
+                rule.CalcConfigs.Add(new CalcValueConfig());
+        }
+
+        [RelayCommand]
+        private void RemoveCalcConfig(CalcValueConfig config)
+        {
+            if (config == null) return;
+            foreach (var rule in Rules)
+            {
+                if (rule.CalcConfigs.Remove(config))
+                    return;
+            }
         }
 
         /// <summary>

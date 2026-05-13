@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace CANDebugTool.Models
@@ -82,6 +83,9 @@ namespace CANDebugTool.Models
         [ObservableProperty]
         private bool _isClassifyMode;
 
+        /// <summary>计算值配置列表（每条规则最多8条）</summary>
+        public ObservableCollection<CalcValueConfig> CalcConfigs { get; } = new();
+
         // ── ID 参考值与比较操作 ──
 
         private byte[] _idRef = new byte[4];
@@ -148,7 +152,7 @@ namespace CANDebugTool.Models
         [ObservableProperty]
         private bool _dataOpEquals = true;
 
-        private static byte[]? ParseHex(string hex, int expectedBytes)
+        internal static byte[]? ParseHex(string hex, int expectedBytes)
         {
             try
             {
@@ -251,24 +255,104 @@ namespace CANDebugTool.Models
     }
 
     /// <summary>
-    /// 计算规则配置（绑定到 Data 字节位置）
+    /// 计算值配置：从 Data 中按掩码提取数值
     /// </summary>
-    public partial class CalcRuleConfig : ObservableObject
+    public partial class CalcValueConfig : ObservableObject
     {
-        /// <summary>起始字节号 (0-11, ID从0-3, Data从4-11)</summary>
-        [ObservableProperty]
-        private int _startByte;
+        /// <summary>掩码 (8字节)，只可为连续0/1/2/4/8个FF</summary>
+        private byte[] _dataMask = new byte[8];
 
-        /// <summary>字节长度 (1, 2, 4)</summary>
-        [ObservableProperty]
-        private int _byteLength = 2;
+        public byte[] DataMask
+        {
+            get => _dataMask;
+            set
+            {
+                if (SetProperty(ref _dataMask, value))
+                {
+                    OnPropertyChanged(nameof(DataMaskHex));
+                    OnPropertyChanged(nameof(FfCount));
+                    OnPropertyChanged(nameof(AvailableTypes));
+                }
+            }
+        }
 
-        /// <summary>数据类型: int16, uint16, int32, uint32, float32</summary>
-        [ObservableProperty]
-        private string _dataType = "uint16";
+        public string DataMaskHex
+        {
+            get => BitConverter.ToString(_dataMask).Replace("-", "");
+            set
+            {
+                var bytes = ClassificationRule.ParseHex(value, 8);
+                if (bytes != null)
+                {
+                    _dataMask = bytes;
+                    OnPropertyChanged(nameof(DataMask));
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(FfCount));
+                    OnPropertyChanged(nameof(AvailableTypes));
+                }
+            }
+        }
 
-        /// <summary>是否计算差值</summary>
+        /// <summary>掩码中连续 FF 的个数 (0/1/2/4/8)</summary>
+        public int FfCount => CountConsecutiveFF(_dataMask);
+
+        /// <summary>大端: true=大端, false=小端</summary>
         [ObservableProperty]
-        private bool _enableDiff;
+        private bool _isBigEndian = true;
+
+        /// <summary>属性类型: hex/flt/dbl/8U/8S/16U/16S/32U/32S/64U/64S</summary>
+        [ObservableProperty]
+        private string _propertyType = "hex";
+
+        /// <summary>根据 FF 个数返回可用属性类型列表</summary>
+        public static List<string> GetAvailableTypes(int ffCount) => ffCount switch
+        {
+            1 => new List<string> { "hex", "8U", "8S" },
+            2 => new List<string> { "hex", "16U", "16S" },
+            4 => new List<string> { "hex", "flt", "32U", "32S" },
+            8 => new List<string> { "hex", "dbl", "64U", "64S" },
+            _ => new List<string> { "hex" }
+        };
+
+        public List<string> AvailableTypes => GetAvailableTypes(FfCount);
+
+        public static string TypeDisplayName(string type) => type switch
+        {
+            "hex" => "十六进制",
+            "flt" => "浮点",
+            "dbl" => "双精度浮点",
+            "8U" => "8位无符号",
+            "8S" => "8位有符号",
+            "16U" => "16位无符号",
+            "16S" => "16位有符号",
+            "32U" => "32位无符号",
+            "32S" => "32位有符号",
+            "64U" => "64位无符号",
+            "64S" => "64位有符号",
+            _ => type
+        };
+
+        /// <summary>计算掩码中连续 FF 的个数（仅允许从某字节开始的一段连续 FF）</summary>
+        private static int CountConsecutiveFF(byte[] mask)
+        {
+            int count = 0;
+            bool inFF = false;
+            bool afterFF = false;
+            foreach (var b in mask)
+            {
+                if (b == 0xFF)
+                {
+                    if (afterFF) return 0; // 不连续
+                    inFF = true;
+                    count++;
+                }
+                else if (b == 0x00)
+                {
+                    if (inFF) afterFF = true;
+                }
+                else return 0; // 非 00 或 FF
+            }
+            return (count == 0 || count == 1 || count == 2 || count == 4 || count == 8) ? count : 0;
+        }
     }
 }
