@@ -53,14 +53,38 @@ namespace CANDebugTool.Services
             }
 
             // 遍历所有启用的规则，取第一条匹配的
-            foreach (var rule in rules.Where(r => r.Enabled))
+            foreach (var rule in rules)
             {
-                // 计算 12 字节归类码
+                // ── ID 匹配 ──
+                // in1 = id & mask,  then  in1 op ref1
+                byte[] in1 = new byte[4];
+                for (int i = 0; i < 4; i++)
+                    in1[i] = (byte)(idBytes[i] & rule.IdMask[i]);
+
+                bool idMatch = rule.IdOpEquals
+                    ? BytesEqual(in1, rule.IdRef)
+                    : !BytesEqual(in1, rule.IdRef);
+
+                if (!idMatch) continue;
+
+                // ── Data 匹配 ──
+                // in2 = data & mask,  then  in2 op ref2
+                byte[] in2 = new byte[8];
+                for (int i = 0; i < 8; i++)
+                    in2[i] = (byte)(msgData[i] & rule.DataMask[i]);
+
+                bool dataMatch = rule.DataOpEquals
+                    ? BytesEqual(in2, rule.DataRef)
+                    : !BytesEqual(in2, rule.DataRef);
+
+                if (!dataMatch) continue;
+
+                // 计算 12 字节归类码（复用已算好的 in1/in2）
                 byte[] codeBytes = new byte[12];
                 for (int i = 0; i < 4; i++)
-                    codeBytes[i] = (byte)(idBytes[i] & rule.IdMask[i]);
+                    codeBytes[i] = in1[i];
                 for (int i = 0; i < 8; i++)
-                    codeBytes[4 + i] = (byte)(msgData[i] & rule.DataMask[i]);
+                    codeBytes[4 + i] = in2[i];
 
                 string codeHex = BytesToHex(codeBytes);
 
@@ -70,9 +94,9 @@ namespace CANDebugTool.Services
                     group = new StatisticsGroup
                     {
                         GroupId = _nextGroupId++,
+                        RuleName = rule.Name,
                         ClassifyCode = codeHex,
-                        Count = 0,
-                        PreviousTimestampUs = msg.TimestampUs
+                        Count = 0
                     };
                     _groupCache[codeHex] = group;
                 }
@@ -80,8 +104,21 @@ namespace CANDebugTool.Services
                 // 更新统计
                 group.Count++;
 
-                // 计算时间差
-                group.TimeDiff = msg.TimestampUs - group.PreviousTimestampUs;
+                // 计算时间差（首帧跳过，Count>1 才有上一条可比较）
+                if (group.Count > 1)
+                {
+                    group.TimeDiff = msg.TimestampUs - group.PreviousTimestampUs;
+                    if (group.TimeDiffMin == null)
+                    {
+                        group.TimeDiffMin = group.TimeDiff;
+                        group.TimeDiffMax = group.TimeDiff;
+                    }
+                    else
+                    {
+                        if (group.TimeDiff < group.TimeDiffMin) group.TimeDiffMin = group.TimeDiff;
+                        if (group.TimeDiff > group.TimeDiffMax) group.TimeDiffMax = group.TimeDiff;
+                    }
+                }
                 group.PreviousTimestampUs = msg.TimestampUs;
 
                 // 更新报文上的归类信息
@@ -126,6 +163,33 @@ namespace CANDebugTool.Services
         /// 获取所有统计组的快照
         /// </summary>
         public List<StatisticsGroup> GetAllGroups() => _groupCache.Values.ToList();
+
+        /// <summary>
+        /// 重置指定规则的所有统计组
+        /// </summary>
+        public void ResetRuleGroups(string ruleName)
+        {
+            var groups = _groupCache.Values.Where(g => g.RuleName == ruleName).ToList();
+            foreach (var g in groups)
+            {
+                g.Count = 0;
+                g.CalcValue = 0;
+                g.TimeDiff = 0;
+                g.TimeDiffMin = null;
+                g.TimeDiffMax = null;
+                g.DataDiff = 0;
+                g.PreviousTimestampUs = 0;
+                g.PreviousCalcValue = 0;
+                OnGroupUpdated?.Invoke(g);
+            }
+        }
+
+        private static bool BytesEqual(byte[] a, byte[] b)
+        {
+            for (int i = 0; i < a.Length; i++)
+                if (a[i] != b[i]) return false;
+            return true;
+        }
 
         private static string BytesToHex(byte[] bytes)
         {

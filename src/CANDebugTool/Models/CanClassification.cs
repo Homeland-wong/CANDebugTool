@@ -17,7 +17,7 @@ namespace CANDebugTool.Models
         private string _name = "";
 
         /// <summary>ID段掩码 (4字节)</summary>
-        private byte[] _idMask = new byte[4] { 0xFF, 0xFF, 0xFF, 0xFF };
+        private byte[] _idMask = new byte[4];
 
         public byte[] IdMask
         {
@@ -46,7 +46,7 @@ namespace CANDebugTool.Models
         }
 
         /// <summary>Data段掩码 (8字节)</summary>
-        private byte[] _dataMask = new byte[8] { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
+        private byte[] _dataMask = new byte[8];
 
         public byte[] DataMask
         {
@@ -77,6 +77,76 @@ namespace CANDebugTool.Models
         /// <summary>是否启用此规则</summary>
         [ObservableProperty]
         private bool _enabled = true;
+
+        /// <summary>归类模式: true=归类(不可编辑), false=配置(可编辑, 不参与归类)</summary>
+        [ObservableProperty]
+        private bool _isClassifyMode;
+
+        // ── ID 参考值与比较操作 ──
+
+        private byte[] _idRef = new byte[4];
+
+        public byte[] IdRef
+        {
+            get => _idRef;
+            set
+            {
+                if (SetProperty(ref _idRef, value))
+                    OnPropertyChanged(nameof(IdRefHex));
+            }
+        }
+
+        public string IdRefHex
+        {
+            get => BitConverter.ToString(_idRef).Replace("-", "");
+            set
+            {
+                var bytes = ParseHex(value, 4);
+                if (bytes != null)
+                {
+                    _idRef = bytes;
+                    OnPropertyChanged(nameof(IdRef));
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        /// <summary>ID比较: true=等(==), false=不等(!=)</summary>
+        [ObservableProperty]
+        private bool _idOpEquals = true;
+
+        // ── Data 参考值与比较操作 ──
+
+        private byte[] _dataRef = new byte[8];
+
+        public byte[] DataRef
+        {
+            get => _dataRef;
+            set
+            {
+                if (SetProperty(ref _dataRef, value))
+                    OnPropertyChanged(nameof(DataRefHex));
+            }
+        }
+
+        public string DataRefHex
+        {
+            get => BitConverter.ToString(_dataRef).Replace("-", "");
+            set
+            {
+                var bytes = ParseHex(value, 8);
+                if (bytes != null)
+                {
+                    _dataRef = bytes;
+                    OnPropertyChanged(nameof(DataRef));
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        /// <summary>Data比较: true=等(==), false=不等(!=)</summary>
+        [ObservableProperty]
+        private bool _dataOpEquals = true;
 
         private static byte[]? ParseHex(string hex, int expectedBytes)
         {
@@ -141,6 +211,9 @@ namespace CANDebugTool.Models
         private int _groupId;
 
         [ObservableProperty]
+        private string _ruleName = "";
+
+        [ObservableProperty]
         private string _classifyCode = "";
 
         [ObservableProperty]
@@ -163,6 +236,14 @@ namespace CANDebugTool.Models
         /// <summary>时间戳差值</summary>
         [ObservableProperty]
         private long _timeDiff;
+
+        /// <summary>时间差最小值 (null=暂无数据)</summary>
+        [ObservableProperty]
+        private long? _timeDiffMin;
+
+        /// <summary>时间差最大值 (null=暂无数据)</summary>
+        [ObservableProperty]
+        private long? _timeDiffMax;
 
         /// <summary>数据差值</summary>
         [ObservableProperty]

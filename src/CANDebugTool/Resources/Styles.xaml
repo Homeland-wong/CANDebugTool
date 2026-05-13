@@ -86,6 +86,58 @@
         <Setter Property="Margin" Value="0,2"/>
     </Style>
 
+    <!-- 滑动开关样式 -->
+    <Style x:Key="SliderToggleStyle" TargetType="CheckBox">
+        <Setter Property="Width" Value="40"/>
+        <Setter Property="Height" Value="22"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="CheckBox">
+                    <Border x:Name="SwitchTrack" Width="40" Height="22" CornerRadius="11"
+                            Background="#D1D1D1" BorderBrush="#A0A0A0" BorderThickness="1">
+                        <Ellipse x:Name="SwitchKnob" Fill="White" Width="18" Height="18"
+                                 HorizontalAlignment="Left" VerticalAlignment="Center" Margin="1,0,0,0"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="SwitchTrack" Property="Background" Value="#0078D4"/>
+                            <Setter TargetName="SwitchTrack" Property="BorderBrush" Value="#0078D4"/>
+                            <Setter TargetName="SwitchKnob" Property="HorizontalAlignment" Value="Right"/>
+                            <Setter TargetName="SwitchKnob" Property="Margin" Value="0,0,1,0"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- 滑动开关样式 (checked=滑块在左) -->
+    <Style x:Key="SliderToggleLeftStyle" TargetType="CheckBox">
+        <Setter Property="Width" Value="40"/>
+        <Setter Property="Height" Value="22"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="CheckBox">
+                    <Border x:Name="SwitchTrack" Width="40" Height="22" CornerRadius="11"
+                            Background="#0078D4" BorderBrush="#0078D4" BorderThickness="1">
+                        <Ellipse x:Name="SwitchKnob" Fill="White" Width="18" Height="18"
+                                 HorizontalAlignment="Left" VerticalAlignment="Center" Margin="1,0,0,0"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="False">
+                            <Setter TargetName="SwitchTrack" Property="Background" Value="#D1D1D1"/>
+                            <Setter TargetName="SwitchTrack" Property="BorderBrush" Value="#A0A0A0"/>
+                            <Setter TargetName="SwitchKnob" Property="HorizontalAlignment" Value="Right"/>
+                            <Setter TargetName="SwitchKnob" Property="Margin" Value="0,0,1,0"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <!-- DataGrid -->
     <Style TargetType="DataGrid">
         <Setter Property="AutoGenerateColumns" Value="False"/>

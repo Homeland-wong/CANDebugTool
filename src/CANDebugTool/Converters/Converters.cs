@@ -33,6 +33,18 @@ namespace CANDebugTool.Converters
     }
 
     /// <summary>
+    /// Bool → 归类/配置 文本: true="归类", false="配置"
+    /// </summary>
+    public class ClassifyModeToTextConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+            => value is bool b && b ? "归类" : "配置";
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+            => value is string s && s == "归类";
+    }
+
+    /// <summary>
     /// Bool → Opacity: true=1.0, false=0.0
     /// </summary>
     public class BoolToOpacityConverter : IValueConverter

@@ -42,7 +42,7 @@ namespace CANDebugTool.ViewModels
         /// </summary>
         public void Classify(CanMessage msg)
         {
-            _activeRules = Rules.Where(r => r.Enabled).ToList();
+            _activeRules = Rules.Where(r => r.IsClassifyMode).ToList();
             if (_activeRules.Count == 0)
             {
                 msg.ClassifyCodeHex = "00·00·00·00·00·00·00·00·00·00·00·00";
@@ -114,10 +114,17 @@ namespace CANDebugTool.ViewModels
         }
 
         [RelayCommand]
-        private void DeleteRule()
+        private void DeleteRule(ClassificationRule rule)
         {
-            if (SelectedRule != null)
-                Rules.Remove(SelectedRule);
+            if (rule != null)
+                Rules.Remove(rule);
+        }
+
+        [RelayCommand]
+        private void ResetRule(ClassificationRule rule)
+        {
+            if (rule != null)
+                _svc.ResetRuleGroups(rule.Name);
         }
 
         /// <summary>

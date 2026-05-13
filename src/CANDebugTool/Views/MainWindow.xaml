@@ -155,8 +155,11 @@
                         <TextBox Grid.Column="4" Width="100" Text="{Binding SendVM.CanId, UpdateSourceTrigger=PropertyChanged}" FontSize="11" TextChanged="HexInput_TextChanged"/>
                         <TextBlock Grid.Column="5" Text="数据:" VerticalAlignment="Center" FontSize="11" Margin="6,0,2,0"/>
                         <TextBox Grid.Column="6" Width="170" Text="{Binding SendVM.CanData, UpdateSourceTrigger=PropertyChanged}" FontSize="11" TextChanged="HexInput_TextChanged"/>
-                        <Button Grid.Column="7" Content="{Binding SendVM.FrameTypeButtonText}" Style="{StaticResource SecondaryButton}"
-                                Command="{Binding SendVM.ToggleFrameTypeCommand}" Padding="6,2" Margin="6,0,2,0" FontSize="11"/>
+                        <StackPanel Grid.Column="7" Orientation="Horizontal" Margin="6,0,2,0">
+                            <TextBlock Text="标准" FontSize="11" VerticalAlignment="Center" Margin="0,0,3,0" Foreground="#666"/>
+                            <CheckBox Style="{StaticResource SliderToggleStyle}" IsChecked="{Binding SendVM.IsExtendedFrame}" VerticalAlignment="Center"/>
+                            <TextBlock Text="扩展" FontSize="11" VerticalAlignment="Center" Margin="3,0,0,0" Foreground="#666"/>
+                        </StackPanel>
                         <Button Grid.Column="8" Content="发送" Style="{StaticResource PrimaryButton}"
                                 Command="{Binding SendVM.SendCommand}" Padding="8,2" FontSize="11"/>
                     </Grid>
@@ -188,9 +191,10 @@
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="*"/>
                             </Grid.RowDefinitions>
-                            <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,2">
+                            <StackPanel Grid.Row="0" Margin="0,0,0,2">
                                 <Button Content="+ 添加规则" Style="{StaticResource PrimaryButton}" Command="{Binding StatisticsVM.AddRuleCommand}" Padding="8,2" FontSize="11"/>
-                                <Button Content="删除" Style="{StaticResource SecondaryButton}" Command="{Binding StatisticsVM.DeleteRuleCommand}" Padding="8,2" FontSize="11" Margin="6,0,0,0"/>
+                                <TextBlock Text="归类码相同则归为同一组，不同规则也可能产生同归类码，组名为首个规则名，添加规则请谨慎！"
+                                           Foreground="Red" FontWeight="Bold" FontSize="10" TextWrapping="Wrap" Margin="0,4,0,0"/>
                             </StackPanel>
                             <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" MaxHeight="180">
                                 <ItemsControl ItemsSource="{Binding StatisticsVM.Rules}">
@@ -199,16 +203,88 @@
                                             <Border Margin="2,2" Padding="6,4" BorderBrush="#BDBDBD" BorderThickness="1" CornerRadius="3" Background="White">
                                                 <StackPanel>
                                                     <StackPanel Orientation="Horizontal">
-                                                        <CheckBox IsChecked="{Binding Enabled}" VerticalAlignment="Center"/>
-                                                        <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Width="80" Margin="6,0,0,0" FontSize="11"/>
+                                                        <TextBlock Text="配置" FontSize="10" VerticalAlignment="Center" Foreground="#888" Margin="0,0,2,0"/>
+                                                        <CheckBox Style="{StaticResource SliderToggleStyle}" IsChecked="{Binding IsClassifyMode}" VerticalAlignment="Center"/>
+                                                        <TextBlock Text="归类" FontSize="10" VerticalAlignment="Center" Foreground="#888" Margin="2,0,4,0"/>
+                                                        <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Width="70" Margin="2,0,0,0" FontSize="11"/>
+                                                        <Button Content="↺" Width="22" Height="22" FontSize="13" Padding="0" Margin="6,0,0,0"
+                                                                Command="{Binding DataContext.StatisticsVM.ResetRuleCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                CommandParameter="{Binding}"
+                                                                ToolTip="重置此规则统计">
+                                                            <Button.Style>
+                                                                <Style TargetType="Button">
+                                                                    <Setter Property="Background" Value="#E0E0E0"/>
+                                                                    <Setter Property="Foreground" Value="#0078D4"/>
+                                                                    <Setter Property="BorderThickness" Value="0"/>
+                                                                    <Setter Property="Cursor" Value="Hand"/>
+                                                                    <Setter Property="Template">
+                                                                        <Setter.Value>
+                                                                            <ControlTemplate TargetType="Button">
+                                                                                <Border Background="{TemplateBinding Background}" CornerRadius="11" Padding="0">
+                                                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                                                </Border>
+                                                                            </ControlTemplate>
+                                                                        </Setter.Value>
+                                                                    </Setter>
+                                                                    <Style.Triggers>
+                                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                                            <Setter Property="Background" Value="#0078D4"/>
+                                                                            <Setter Property="Foreground" Value="White"/>
+                                                                        </Trigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </Button.Style>
+                                                        </Button>
+                                                        <Button Content="×" Width="22" Height="22" FontSize="13" Padding="0" Margin="2,0,0,0"
+                                                                Command="{Binding DataContext.StatisticsVM.DeleteRuleCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                CommandParameter="{Binding}"
+                                                                ToolTip="删除此规则">
+                                                            <Button.Style>
+                                                                <Style TargetType="Button">
+                                                                    <Setter Property="Background" Value="#E0E0E0"/>
+                                                                    <Setter Property="Foreground" Value="#666"/>
+                                                                    <Setter Property="BorderThickness" Value="0"/>
+                                                                    <Setter Property="Cursor" Value="Hand"/>
+                                                                    <Setter Property="Template">
+                                                                        <Setter.Value>
+                                                                            <ControlTemplate TargetType="Button">
+                                                                                <Border Background="{TemplateBinding Background}" CornerRadius="11" Padding="0">
+                                                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                                                </Border>
+                                                                            </ControlTemplate>
+                                                                        </Setter.Value>
+                                                                    </Setter>
+                                                                    <Style.Triggers>
+                                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                                            <Setter Property="Background" Value="#D13438"/>
+                                                                            <Setter Property="Foreground" Value="White"/>
+                                                                        </Trigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </Button.Style>
+                                                        </Button>
                                                     </StackPanel>
                                                     <StackPanel Orientation="Horizontal" Margin="20,2,0,0">
                                                         <TextBlock Text="ID掩码:" FontSize="10" VerticalAlignment="Center" Foreground="#888"/>
-                                                        <TextBox Text="{Binding IdMaskHex, UpdateSourceTrigger=LostFocus}" Width="95" FontSize="11" Margin="4,2" FontFamily="Consolas"/>
+                                                        <TextBox Text="{Binding IdMaskHex, UpdateSourceTrigger=LostFocus}" Width="95" FontSize="11" Margin="4,2" FontFamily="Consolas"
+                                                                 IsReadOnly="{Binding IsClassifyMode}"/>
+                                                        <TextBlock Text="等" FontSize="10" VerticalAlignment="Center" Foreground="#888" Margin="6,0,2,0"/>
+                                                        <CheckBox Style="{StaticResource SliderToggleLeftStyle}" IsChecked="{Binding IdOpEquals}" VerticalAlignment="Center"/>
+                                                        <TextBlock Text="不等" FontSize="10" VerticalAlignment="Center" Foreground="#888" Margin="2,0,4,0"/>
+                                                        <TextBlock Text="ref:" FontSize="10" VerticalAlignment="Center" Foreground="#888"/>
+                                                        <TextBox Text="{Binding IdRefHex, UpdateSourceTrigger=LostFocus}" Width="95" FontSize="11" Margin="4,2" FontFamily="Consolas"
+                                                                 IsReadOnly="{Binding IsClassifyMode}"/>
                                                     </StackPanel>
                                                     <StackPanel Orientation="Horizontal" Margin="20,0,0,0">
                                                         <TextBlock Text="Data掩码:" FontSize="10" VerticalAlignment="Center" Foreground="#888"/>
-                                                        <TextBox Text="{Binding DataMaskHex, UpdateSourceTrigger=LostFocus}" Width="170" FontSize="11" Margin="4,2" FontFamily="Consolas"/>
+                                                        <TextBox Text="{Binding DataMaskHex, UpdateSourceTrigger=LostFocus}" Width="170" FontSize="11" Margin="4,2" FontFamily="Consolas"
+                                                                 IsReadOnly="{Binding IsClassifyMode}"/>
+                                                        <TextBlock Text="等" FontSize="10" VerticalAlignment="Center" Foreground="#888" Margin="6,0,2,0"/>
+                                                        <CheckBox Style="{StaticResource SliderToggleLeftStyle}" IsChecked="{Binding DataOpEquals}" VerticalAlignment="Center"/>
+                                                        <TextBlock Text="不等" FontSize="10" VerticalAlignment="Center" Foreground="#888" Margin="2,0,4,0"/>
+                                                        <TextBlock Text="ref:" FontSize="10" VerticalAlignment="Center" Foreground="#888"/>
+                                                        <TextBox Text="{Binding DataRefHex, UpdateSourceTrigger=LostFocus}" Width="170" FontSize="11" Margin="4,2" FontFamily="Consolas"
+                                                                 IsReadOnly="{Binding IsClassifyMode}"/>
                                                     </StackPanel>
                                                 </StackPanel>
                                             </Border>
@@ -222,10 +298,31 @@
                     <DataGrid Grid.Row="3" ItemsSource="{Binding StatisticsVM.Groups}" FontSize="11">
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="组号" Binding="{Binding GroupId}" Width="40"/>
-                            <DataGridTextColumn Header="归类码" Binding="{Binding ClassifyCode}" Width="130"/>
+                            <DataGridTextColumn Header="组名" Binding="{Binding RuleName}" Width="80"/>
+                            <DataGridTextColumn Header="归类码" Binding="{Binding ClassifyCode}" Width="*" MinWidth="130"/>
                             <DataGridTextColumn Header="计数" Binding="{Binding Count}" Width="50"/>
                             <DataGridTextColumn Header="计算值" Binding="{Binding CalcValue, StringFormat=F2}" Width="*"/>
-                            <DataGridTextColumn Header="时间差(μs)" Binding="{Binding TimeDiff}" Width="80"/>
+                            <DataGridTemplateColumn Header="时间差(μs)" Width="80">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding TimeDiff}" TextAlignment="Right" Margin="4,0"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="最小(μs)" Width="80">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding TimeDiffMin, TargetNullValue=-}" TextAlignment="Right" Margin="4,0"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="最大(μs)" Width="80">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding TimeDiffMax, TargetNullValue=-}" TextAlignment="Right" Margin="4,0"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
                             <DataGridTextColumn Header="数据差" Binding="{Binding DataDiff, StringFormat=F2}" Width="80"/>
                         </DataGrid.Columns>
                     </DataGrid>
