@@ -34,5 +34,14 @@ namespace CANDebugTool.ViewModels
         {
             // TODO: 从统计数据源更新各数字的值
         }
+
+        /// <summary>
+        /// 重置所有数字显示
+        /// </summary>
+        public void ClearAll()
+        {
+            foreach (var d in Displays)
+                d.Value = "---";
+        }
     }
 }

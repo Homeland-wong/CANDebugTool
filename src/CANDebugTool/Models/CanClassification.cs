@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using CommunityToolkit.Mvvm.ComponentModel;
 
@@ -16,16 +17,80 @@ namespace CANDebugTool.Models
         private string _name = "";
 
         /// <summary>ID段掩码 (4字节)</summary>
-        [ObservableProperty]
         private byte[] _idMask = new byte[4] { 0xFF, 0xFF, 0xFF, 0xFF };
 
+        public byte[] IdMask
+        {
+            get => _idMask;
+            set
+            {
+                if (SetProperty(ref _idMask, value))
+                    OnPropertyChanged(nameof(IdMaskHex));
+            }
+        }
+
+        /// <summary>ID掩码 Hex 显示 (用于 UI 编辑，纯 hex 不含分隔符)</summary>
+        public string IdMaskHex
+        {
+            get => BitConverter.ToString(_idMask).Replace("-", "");
+            set
+            {
+                var bytes = ParseHex(value, 4);
+                if (bytes != null)
+                {
+                    _idMask = bytes;
+                    OnPropertyChanged(nameof(IdMask));
+                    OnPropertyChanged();
+                }
+            }
+        }
+
         /// <summary>Data段掩码 (8字节)</summary>
-        [ObservableProperty]
         private byte[] _dataMask = new byte[8] { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
+
+        public byte[] DataMask
+        {
+            get => _dataMask;
+            set
+            {
+                if (SetProperty(ref _dataMask, value))
+                    OnPropertyChanged(nameof(DataMaskHex));
+            }
+        }
+
+        /// <summary>Data掩码 Hex 显示 (用于 UI 编辑，纯 hex 不含分隔符)</summary>
+        public string DataMaskHex
+        {
+            get => BitConverter.ToString(_dataMask).Replace("-", "");
+            set
+            {
+                var bytes = ParseHex(value, 8);
+                if (bytes != null)
+                {
+                    _dataMask = bytes;
+                    OnPropertyChanged(nameof(DataMask));
+                    OnPropertyChanged();
+                }
+            }
+        }
 
         /// <summary>是否启用此规则</summary>
         [ObservableProperty]
         private bool _enabled = true;
+
+        private static byte[]? ParseHex(string hex, int expectedBytes)
+        {
+            try
+            {
+                hex = hex.Replace("·", "").Replace(" ", "").Replace(",", "");
+                if (hex.Length != expectedBytes * 2) return null;
+                var bytes = new byte[expectedBytes];
+                for (int i = 0; i < expectedBytes; i++)
+                    bytes[i] = Convert.ToByte(hex.Substring(i * 2, 2), 16);
+                return bytes;
+            }
+            catch { return null; }
+        }
     }
 
     /// <summary>

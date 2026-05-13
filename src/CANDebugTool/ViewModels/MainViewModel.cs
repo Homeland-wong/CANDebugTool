@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
 using System.Windows;
 using System.Windows.Threading;
@@ -16,9 +17,12 @@ namespace CANDebugTool.ViewModels
     {
         private readonly CanDeviceService _canService;
         private readonly DispatcherTimer _deviceScanTimer;
+        private readonly StorageService _storageService;
+        private string? _currentWorkPath;   // 当前工作区路径
+        private string? _sessionSubFolder;   // 本次捕获子文件夹
 
         [ObservableProperty]
-        private string _statusText = "就绪";
+        private string _statusText = "请先指定工作区";
 
         [ObservableProperty]
         private bool _isDeviceConnected;
@@ -67,7 +71,6 @@ namespace CANDebugTool.ViewModels
         public ObservableCollection<CanMessage> ReceivedMessages { get; } = new();
         public ObservableCollection<CanMessage> SentMessages { get; } = new();
 
-        // 子 ViewModels
         public SendViewModel SendVM { get; }
         public ReceiveViewModel ReceiveViewModel { get; }
         public StatisticsViewModel StatisticsVM { get; }
@@ -78,42 +81,45 @@ namespace CANDebugTool.ViewModels
         public MainViewModel()
         {
             _canService = CanDeviceService.Instance;
+            _storageService = StorageService.Instance;
             _canService.OnStatusChanged += status => StatusText = status;
             _canService.OnMessageReceived += OnMessageReceived;
             _canService.OnDevicesChanged += OnDevicesChanged;
 
             SelectedBaudrate = BaudrateList.First(b => b.Name == "500Kbps");
 
-            // 子 ViewModel
             SendVM = new SendViewModel(this);
             ReceiveViewModel = new ReceiveViewModel(this);
             StatisticsVM = new StatisticsViewModel();
             CurveVM = new CurveViewModel();
             DigitalVM = new DigitalViewModel();
             WorkspaceVM = new WorkspaceViewModel();
+            WorkspaceVM.OnWorkspaceChanged += OnWorkspaceChanged;
 
             _deviceScanTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
             _deviceScanTimer.Tick += (s, e) => ScanDevices();
 
             var defaultDevice = new DeviceInfo
             {
-                DeviceIndex = 0,
-                DeviceType = 21,
-                Name = "USBCAN-2E-U #0"
+                DeviceIndex = 0, DeviceType = 21, Name = "USBCAN-2E-U #0"
             };
             DeviceList.Add(defaultDevice);
             SelectedDevice = defaultDevice;
-            StatusText = "就绪";
+            StatusText = "请先指定工作区";
+        }
+
+        private void OnWorkspaceChanged(string path)
+        {
+            _currentWorkPath = path;
+            StatusText = $"工作区已就绪: {path}";
         }
 
         partial void OnIsAutoScanChanged(bool value) => UpdateAutoScan();
 
         private void UpdateAutoScan()
         {
-            if (IsAutoScan && !IsDeviceConnected)
-                _deviceScanTimer.Start();
-            else
-                _deviceScanTimer.Stop();
+            if (IsAutoScan && !IsDeviceConnected) _deviceScanTimer.Start();
+            else _deviceScanTimer.Stop();
         }
 
         private void OnDevicesChanged(List<DeviceInfo> devices)
@@ -123,10 +129,8 @@ namespace CANDebugTool.ViewModels
                 var prev = SelectedDevice?.DeviceIndex;
                 DeviceList.Clear();
                 foreach (var d in devices) DeviceList.Add(d);
-                if (prev.HasValue)
-                    SelectedDevice = DeviceList.FirstOrDefault(x => x.DeviceIndex == prev.Value);
-                if (DeviceList.Count > 0 && SelectedDevice == null)
-                    SelectedDevice = DeviceList[0];
+                if (prev.HasValue) SelectedDevice = DeviceList.FirstOrDefault(x => x.DeviceIndex == prev.Value);
+                if (DeviceList.Count > 0 && SelectedDevice == null) SelectedDevice = DeviceList[0];
             });
         }
 
@@ -134,16 +138,16 @@ namespace CANDebugTool.ViewModels
         {
             if (IsPaused) return;
 
+            StatisticsVM.Classify(msg);
+            _storageService.WriteMessage(msg);
+
             Application.Current.Dispatcher.Invoke(() =>
             {
-                // 归类处理（占位）
-                StatisticsVM.Classify(msg);
-
-                ReceivedMessages.Insert(0, msg);
+                // 从上到下添加（旧在上，新在下）
+                ReceivedMessages.Add(msg);
                 RxCount++;
-
                 while (ReceivedMessages.Count > 2000)
-                    ReceivedMessages.RemoveAt(ReceivedMessages.Count - 1);
+                    ReceivedMessages.RemoveAt(0);
             });
         }
 
@@ -152,8 +156,7 @@ namespace CANDebugTool.ViewModels
         {
             if (IsScanning || IsDeviceConnected) return;
             IsScanning = true;
-            try { _canService.ScanDevices(); }
-            finally { IsScanning = false; }
+            try { _canService.ScanDevices(); } finally { IsScanning = false; }
         }
 
         [RelayCommand]
@@ -164,8 +167,7 @@ namespace CANDebugTool.ViewModels
             int idx = SelectedDevice?.DeviceIndex ?? 0;
             if (_canService.OpenDevice(dt, idx))
             {
-                IsDeviceConnected = true;
-                DeviceIndex = idx;
+                IsDeviceConnected = true; DeviceIndex = idx;
                 if (_canService.InitCan(SelectedBaudrate, CanChannel))
                     StatusText = "连接成功，请点击启动";
                 else { _canService.CloseDevice(); IsDeviceConnected = false; StatusText = "初始化失败"; }
@@ -177,20 +179,40 @@ namespace CANDebugTool.ViewModels
         private void Disconnect()
         {
             _canService.CloseDevice();
-            IsDeviceConnected = false;
-            IsCanRunning = false;
-            IsCapturing = false;
-            IsAutoScan = true;
+            IsDeviceConnected = false; IsCanRunning = false; IsCapturing = false; IsAutoScan = true;
         }
 
         [RelayCommand]
         private void StartCan()
         {
             if (!IsDeviceConnected) { StatusText = "请先连接设备"; return; }
+            if (string.IsNullOrEmpty(_currentWorkPath)) { StatusText = "请先指定工作区"; return; }
+
+            // 创建工作区子文件夹: 工作区路径\CAN_Capture_20260512_185200
+            string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+            _sessionSubFolder = Path.Combine(_currentWorkPath, $"CAN_Capture_{timestamp}");
+            Directory.CreateDirectory(_sessionSubFolder);
+
+            // 重置所有数据
+            CanMessage._globalSequence = 0;
+            ReceivedMessages.Clear();
+            SentMessages.Clear();
+            TxCount = 0;
+            RxCount = 0;
+            StatisticsVM.ClearAll();
+            ClassificationService.Instance.ClearAll();
+            CurveVM.ClearAll();
+            DigitalVM.ClearAll();
+            ReceiveViewModel.DisplayMessages.Clear();
+
+            // 自动开始 CSV 存储
+            string csvPath = Path.Combine(_sessionSubFolder, $"data.csv");
+            _storageService.StartRecording(csvPath);
+
             if (_canService.StartCan(CanChannel))
             {
-                IsCanRunning = true;
-                IsCapturing = true;
+                IsCanRunning = true; IsCapturing = true;
+                StatusText = $"正在捕获 → {_sessionSubFolder}";
             }
         }
 
@@ -198,42 +220,26 @@ namespace CANDebugTool.ViewModels
         private void StopCan()
         {
             _canService.StopCan(CanChannel);
-            IsCanRunning = false;
-            IsCapturing = false;
-        }
+            IsCanRunning = false; IsCapturing = false;
 
-        [RelayCommand]
-        private void ClearMessages()
-        {
-            ReceivedMessages.Clear();
-            SentMessages.Clear();
-            TxCount = 0;
-            RxCount = 0;
-            CurveVM.ClearAll();
+            // 停止 CSV 存储
+            _storageService.StopRecording();
+            StatusText = "已停止";
         }
 
         public bool SendMessage(CanMessage msg)
         {
             msg.TimestampUs = DateTime.Now.Ticks / 10;
-            bool sent = _canService.Transmit(msg);
+            _canService.Transmit(msg);
+            _storageService.WriteMessage(msg);
 
-            if (sent)
+            Application.Current.Dispatcher.Invoke(() =>
             {
-                // 发送成功：绿色 + TX 计数
-                SentMessages.Insert(0, msg);
-                ReceivedMessages.Insert(0, msg);
+                ReceivedMessages.Add(msg);
                 TxCount++;
-                while (ReceivedMessages.Count > 2000)
-                    ReceivedMessages.RemoveAt(ReceivedMessages.Count - 1);
-            }
-            else
-            {
-                // 发送失败也加入列表（红色），方便调试
-                ReceivedMessages.Insert(0, msg);
-                while (ReceivedMessages.Count > 2000)
-                    ReceivedMessages.RemoveAt(ReceivedMessages.Count - 1);
-            }
-            return sent;
+                while (ReceivedMessages.Count > 2000) ReceivedMessages.RemoveAt(0);
+            });
+            return true;
         }
 
         public void Dispose() => _deviceScanTimer.Stop();

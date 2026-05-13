@@ -78,6 +78,9 @@ namespace CANDebugTool.Models
 
         public static CanMessage FromVciObj(Native.VCI_CAN_OBJ obj, bool isTransmit = false)
         {
+            // VCI_CAN_OBJ.TimeStamp 是 0.1ms 单位，转换为 μs: *100
+            long hwTimestampUs = (long)obj.TimeStamp * 100;
+
             return new CanMessage
             {
                 Id = obj.ID,
@@ -88,13 +91,16 @@ namespace CANDebugTool.Models
                 TimeStampValue = obj.TimeStamp,
                 IsTransmit = isTransmit,
                 Timestamp = DateTime.Now,
-                TimestampUs = DateTime.Now.Ticks / 10,
+                TimestampUs = hwTimestampUs,
                 SequenceNumber = System.Threading.Interlocked.Increment(ref _globalSequence)
             };
         }
 
         public static CanMessage CreateTransmit(uint id, byte[] data, bool isExtended = false)
         {
+            // 发送报文没有硬件时间戳，使用系统时间（μs）
+            long nowUs = DateTime.Now.Ticks / 10;
+
             return new CanMessage
             {
                 Id = id,
@@ -103,7 +109,8 @@ namespace CANDebugTool.Models
                 DataLen = (byte)(data?.Length ?? 0),
                 Data = data ?? new byte[8],
                 IsTransmit = true,
-                TimestampUs = DateTime.Now.Ticks / 10,
+                Timestamp = DateTime.Now,
+                TimestampUs = nowUs,
                 SequenceNumber = System.Threading.Interlocked.Increment(ref _globalSequence)
             };
         }

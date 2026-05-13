@@ -80,11 +80,22 @@ namespace CANDebugTool.ViewModels
                 try
                 {
                     using var writer = new System.IO.StreamWriter(dialog.FileName);
-                    writer.WriteLine("Time,ID,Direction,Type,Length,Data");
+
+                    // 功能需求第2条：序号、μs时间戳、归类码、统计组号
+                    writer.WriteLine("序号,μs时间戳,ID,方向,帧类型,DLC,数据,归类码,组号");
 
                     foreach (var msg in _mainVM.ReceivedMessages)
                     {
-                        writer.WriteLine($"{msg.Timestamp:HH:mm:ss.fff},{msg.IdDisplay},{msg.Direction},{msg.FrameType},{msg.DataLen},{msg.DataHex}");
+                        writer.WriteLine(
+                            $"{msg.SequenceNumber}," +
+                            $"{msg.TimestampUs}," +
+                            $"{msg.IdDisplay}," +
+                            $"{msg.DirectionCn}," +
+                            $"{msg.FrameTypeCn}," +
+                            $"{msg.DataLen}," +
+                            $"{msg.DataHex}," +
+                            $"{msg.ClassifyCodeHex}," +
+                            $"{msg.GroupId}");
                     }
 
                     StatusMessage = $"已保存 {dialog.FileName}";

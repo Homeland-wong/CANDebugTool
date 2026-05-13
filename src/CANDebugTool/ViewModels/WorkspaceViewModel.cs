@@ -1,3 +1,4 @@
+using System;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Win32;
@@ -16,6 +17,8 @@ namespace CANDebugTool.ViewModels
         [ObservableProperty]
         private bool _hasWorkspace;
 
+        public event Action<string>? OnWorkspaceChanged;
+
         public WorkspaceConfig? Config { get; private set; }
 
         [RelayCommand]
@@ -28,6 +31,7 @@ namespace CANDebugTool.ViewModels
                 WorkspaceName = System.IO.Path.GetFileName(WorkspacePath);
                 Config = new WorkspaceConfig { WorkspacePath = WorkspacePath, Name = WorkspaceName };
                 HasWorkspace = true;
+                OnWorkspaceChanged?.Invoke(WorkspacePath);
             }
         }
 
@@ -41,6 +45,7 @@ namespace CANDebugTool.ViewModels
                 WorkspaceName = System.IO.Path.GetFileName(WorkspacePath);
                 Config = new WorkspaceConfig { WorkspacePath = WorkspacePath, Name = WorkspaceName };
                 HasWorkspace = true;
+                OnWorkspaceChanged?.Invoke(WorkspacePath);
             }
         }
     }

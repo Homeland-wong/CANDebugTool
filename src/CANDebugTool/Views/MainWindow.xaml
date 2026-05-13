@@ -79,8 +79,7 @@
                             IsEnabled="{Binding IsCanRunning, Converter={StaticResource InverseBoolConverter}}" Margin="0,0,4,0"/>
                     <Button Content="停止" Style="{StaticResource SecondaryButton}" Command="{Binding StopCanCommand}"
                             IsEnabled="{Binding IsCanRunning}" Margin="0,0,4,0"/>
-                    <Button Content="清空" Style="{StaticResource SecondaryButton}" Command="{Binding ClearMessagesCommand}" Margin="0,0,4,0"/>
-                    <TextBlock Text="|" VerticalAlignment="Center" Foreground="#CCC" Margin="4,0"/>
+                    <TextBlock Text="" VerticalAlignment="Center"/>
                     <CheckBox Content="暂停" IsChecked="{Binding IsPaused}" VerticalAlignment="Center" Margin="8,0,0,0"/>
                     <!-- 捕获 / 录制指示 -->
                     <Ellipse Width="8" Height="8" Fill="#D13438" Margin="12,0,0,0" Opacity="{Binding IsCapturing, Converter={StaticResource BoolToOpacityConverter}}" />
@@ -136,14 +135,11 @@
                             <DataGridTextColumn Header="组号" Binding="{Binding GroupId}" Width="35"/>
                         </DataGrid.Columns>
                     </DataGrid>
-                    <!-- 底部工具栏: 清空/保存 + 快速发送 -->
+                    <!-- 底部工具栏: 快速发送 -->
                     <Grid Grid.Row="2" Margin="2,2">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="6"/>
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="Auto"/>
@@ -152,19 +148,16 @@
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-                        <Button Grid.Column="0" Content="清空" Style="{StaticResource SecondaryButton}" Command="{Binding ClearMessagesCommand}" Padding="8,2"/>
-                        <Button Grid.Column="1" Content="保存CSV" Style="{StaticResource SecondaryButton}" Command="{Binding ReceiveViewModel.SaveToFileCommand}" Padding="8,2" Margin="6,0,0,0"/>
-                        <TextBlock Grid.Column="2" Text="{Binding RxCount, StringFormat='RX: {0}'}" VerticalAlignment="Center" Foreground="#0078D4" Margin="12,0,0,0"/>
-                        <Rectangle Grid.Column="3" Width="1" Fill="#DDD" Margin="8,0,0,0"/>
-                        <!-- 快速发送 -->
-                        <TextBlock Grid.Column="5" Text="快速发送:" VerticalAlignment="Center" FontSize="11" Foreground="#666"/>
-                        <TextBlock Grid.Column="6" Text="ID:" VerticalAlignment="Center" FontSize="11" Margin="4,0,2,0"/>
-                        <TextBox Grid.Column="7" Width="100" Text="{Binding SendVM.CanId, UpdateSourceTrigger=PropertyChanged}" FontSize="11" TextChanged="HexInput_TextChanged"/>
-                        <TextBlock Grid.Column="8" Text="数据:" VerticalAlignment="Center" FontSize="11" Margin="6,0,2,0"/>
-                        <TextBox Grid.Column="9" Width="170" Text="{Binding SendVM.CanData, UpdateSourceTrigger=PropertyChanged}" FontSize="11" TextChanged="HexInput_TextChanged"/>
-                        <Button Grid.Column="10" Content="{Binding SendVM.FrameTypeButtonText}" Style="{StaticResource SecondaryButton}"
+                        <TextBlock Grid.Column="0" Text="{Binding RxCount, StringFormat='RX: {0}'}" VerticalAlignment="Center" Foreground="#0078D4"/>
+                        <TextBlock Grid.Column="1" Text=" | " Foreground="#DDD" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="2" Text="快速发送:" VerticalAlignment="Center" FontSize="11" Foreground="#666"/>
+                        <TextBlock Grid.Column="3" Text="ID:" VerticalAlignment="Center" FontSize="11" Margin="4,0,2,0"/>
+                        <TextBox Grid.Column="4" Width="100" Text="{Binding SendVM.CanId, UpdateSourceTrigger=PropertyChanged}" FontSize="11" TextChanged="HexInput_TextChanged"/>
+                        <TextBlock Grid.Column="5" Text="数据:" VerticalAlignment="Center" FontSize="11" Margin="6,0,2,0"/>
+                        <TextBox Grid.Column="6" Width="170" Text="{Binding SendVM.CanData, UpdateSourceTrigger=PropertyChanged}" FontSize="11" TextChanged="HexInput_TextChanged"/>
+                        <Button Grid.Column="7" Content="{Binding SendVM.FrameTypeButtonText}" Style="{StaticResource SecondaryButton}"
                                 Command="{Binding SendVM.ToggleFrameTypeCommand}" Padding="6,2" Margin="6,0,2,0" FontSize="11"/>
-                        <Button Grid.Column="11" Content="发送" Style="{StaticResource PrimaryButton}"
+                        <Button Grid.Column="8" Content="发送" Style="{StaticResource PrimaryButton}"
                                 Command="{Binding SendVM.SendCommand}" Padding="8,2" FontSize="11"/>
                     </Grid>
                 </Grid>
@@ -177,16 +170,56 @@
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
                     <TextBlock Grid.Row="0" Text="📊 归类统计" FontSize="13" FontWeight="SemiBold" Margin="4,2"/>
                     <!-- 掩码配置工具栏 -->
-                    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="4,0,4,4">
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="4,0,4,2">
                         <Button Content="掩码规则" Style="{StaticResource SecondaryButton}" Command="{Binding StatisticsVM.ToggleRulePanelCommand}" Padding="8,2"/>
                         <TextBlock Text="{Binding StatisticsVM.StatusText}" VerticalAlignment="Center" Foreground="#666" Margin="8,0,0,0"/>
                     </StackPanel>
+                    <!-- 规则编辑面板（可折叠） -->
+                    <Border Grid.Row="2" Background="#FFF8E1" BorderBrush="#FFE082" BorderThickness="1" CornerRadius="3"
+                            Margin="2,0,2,2"
+                            Visibility="{Binding StatisticsVM.IsRulePanelVisible, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <Grid Margin="4">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,2">
+                                <Button Content="+ 添加规则" Style="{StaticResource PrimaryButton}" Command="{Binding StatisticsVM.AddRuleCommand}" Padding="8,2" FontSize="11"/>
+                                <Button Content="删除" Style="{StaticResource SecondaryButton}" Command="{Binding StatisticsVM.DeleteRuleCommand}" Padding="8,2" FontSize="11" Margin="6,0,0,0"/>
+                            </StackPanel>
+                            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" MaxHeight="180">
+                                <ItemsControl ItemsSource="{Binding StatisticsVM.Rules}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Margin="2,2" Padding="6,4" BorderBrush="#BDBDBD" BorderThickness="1" CornerRadius="3" Background="White">
+                                                <StackPanel>
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <CheckBox IsChecked="{Binding Enabled}" VerticalAlignment="Center"/>
+                                                        <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Width="80" Margin="6,0,0,0" FontSize="11"/>
+                                                    </StackPanel>
+                                                    <StackPanel Orientation="Horizontal" Margin="20,2,0,0">
+                                                        <TextBlock Text="ID掩码:" FontSize="10" VerticalAlignment="Center" Foreground="#888"/>
+                                                        <TextBox Text="{Binding IdMaskHex, UpdateSourceTrigger=LostFocus}" Width="95" FontSize="11" Margin="4,2" FontFamily="Consolas"/>
+                                                    </StackPanel>
+                                                    <StackPanel Orientation="Horizontal" Margin="20,0,0,0">
+                                                        <TextBlock Text="Data掩码:" FontSize="10" VerticalAlignment="Center" Foreground="#888"/>
+                                                        <TextBox Text="{Binding DataMaskHex, UpdateSourceTrigger=LostFocus}" Width="170" FontSize="11" Margin="4,2" FontFamily="Consolas"/>
+                                                    </StackPanel>
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </Grid>
+                    </Border>
                     <!-- 统计组列表 -->
-                    <DataGrid Grid.Row="2" ItemsSource="{Binding StatisticsVM.Groups}" FontSize="11">
+                    <DataGrid Grid.Row="3" ItemsSource="{Binding StatisticsVM.Groups}" FontSize="11">
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="组号" Binding="{Binding GroupId}" Width="40"/>
                             <DataGridTextColumn Header="归类码" Binding="{Binding ClassifyCode}" Width="130"/>
