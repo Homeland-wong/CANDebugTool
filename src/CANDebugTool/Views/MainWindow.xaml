@@ -2,6 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="clr-namespace:CANDebugTool.ViewModels"
+        xmlns:sys="clr-namespace:System;assembly=System.Runtime"
         Title="CAN 调试工具"
         Height="900" Width="1400"
         MinHeight="700" MinWidth="1000"
@@ -303,10 +304,10 @@
                                                     </StackPanel>
                                                     <!-- Row 1 中: 分隔线 -->
                                                     <Border Grid.Row="1" Grid.Column="1" Width="1" Margin="8,2" Background="#E0E0E0"/>
-                                                    <!-- Row 1 右: 计算值配置 -->
+                                                    <!-- Row 1 右: 关注值配置 -->
                                                     <StackPanel Grid.Row="1" Grid.Column="2" Margin="4,0,0,0">
                                                         <StackPanel Orientation="Horizontal">
-                                                            <TextBlock Text="计算值配置" FontSize="10" FontWeight="Bold" VerticalAlignment="Center" Foreground="#555"/>
+                                                            <TextBlock Text="关注值配置" FontSize="10" FontWeight="Bold" VerticalAlignment="Center" Foreground="#555"/>
                                                             <Button Content="+" Width="18" Height="18" FontSize="11" FontWeight="Bold" Padding="0" Margin="6,0,2,0"
                                                                     Command="{Binding DataContext.StatisticsVM.AddCalcConfigCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                                     CommandParameter="{Binding}"
@@ -340,16 +341,21 @@
                                                                 <DataTemplate>
                                                                     <Border Margin="0,2" Padding="3,1" BorderBrush="#E0E0E0" BorderThickness="1" CornerRadius="2" Background="#FAFAFA">
                                                                         <StackPanel Orientation="Horizontal">
-                                                                            <TextBox Text="{Binding DataMaskHex, UpdateSourceTrigger=LostFocus}" Width="155" FontSize="10" FontFamily="Consolas"/>
+                                                                            <TextBox Text="{Binding DataMaskHex, UpdateSourceTrigger=LostFocus}" Width="110" FontSize="10" FontFamily="Consolas"/>
                                                                             <TextBlock Text="小端" FontSize="10" VerticalAlignment="Center" Foreground="#888" Margin="4,0,1,0"/>
                                                                             <CheckBox Style="{StaticResource SliderToggleStyle}" IsChecked="{Binding IsBigEndian}" VerticalAlignment="Center"/>
-                                                                            <TextBlock Text="大端" FontSize="10" VerticalAlignment="Center" Foreground="#888" Margin="1,0,3,0"/>
+                                                                            <TextBlock Text="大端" FontSize="10" VerticalAlignment="Center" Foreground="#888" Margin="1,0,2,0"/>
                                                                             <ComboBox ItemsSource="{Binding AvailableTypes}" SelectedItem="{Binding PropertyType}" Width="80" FontSize="10">
                                                                                 <ComboBox.ItemTemplate>
                                                                                     <DataTemplate>
                                                                                         <TextBlock Text="{Binding ., Converter={StaticResource CalcTypeToDisplayConverter}}" FontSize="10"/>
                                                                                     </DataTemplate>
                                                                                 </ComboBox.ItemTemplate>
+                                                                            </ComboBox>
+                                                                            <ComboBox Width="44" FontSize="10" SelectedItem="{Binding FocusMode}" Margin="2,0,0,0">
+                                                                                <sys:String>无</sys:String>
+                                                                                <sys:String>增量</sys:String>
+                                                                                <sys:String>跳动</sys:String>
                                                                             </ComboBox>
                                                                             <Button Content="-" Width="16" Height="16" FontSize="10" FontWeight="Bold" Padding="0" Margin="3,0,0,0"
                                                                                     Command="{Binding DataContext.StatisticsVM.RemoveCalcConfigCommand, RelativeSource={RelativeSource AncestorType=Window}}"
@@ -397,8 +403,7 @@
                             <DataGridTextColumn Header="组号" Binding="{Binding GroupId}" Width="40"/>
                             <DataGridTextColumn Header="组名" Binding="{Binding RuleName}" Width="80"/>
                             <DataGridTextColumn Header="归类码" Binding="{Binding ClassifyCode}" Width="*" MinWidth="130"/>
-                            <DataGridTextColumn Header="计数" Binding="{Binding Count}" Width="50"/>
-                            <DataGridTextColumn Header="计算值" Binding="{Binding CalcValue, StringFormat=F2}" Width="*"/>
+                            <DataGridTextColumn Header="计数" Binding="{Binding Count}" Width="45"/>
                             <DataGridTemplateColumn Header="时间差(μs)" Width="80">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
@@ -420,7 +425,22 @@
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
-                            <DataGridTextColumn Header="数据差" Binding="{Binding DataDiff, StringFormat=F2}" Width="80"/>
+                            <DataGridTextColumn Header="关注值" Binding="{Binding CalcValue, StringFormat=F2}" Width="*"/>
+                            <DataGridTextColumn Header="增量" Binding="{Binding FocusedDelta, StringFormat=F2}" Width="60"/>
+                            <DataGridTemplateColumn Header="最小" Width="60">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding FocusedMin, TargetNullValue=-, StringFormat=F2}" TextAlignment="Right" Margin="4,0"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="最大" Width="60">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding FocusedMax, TargetNullValue=-, StringFormat=F2}" TextAlignment="Right" Margin="4,0"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
                         </DataGrid.Columns>
                     </DataGrid>
                 </Grid>

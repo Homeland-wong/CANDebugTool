@@ -249,9 +249,17 @@ namespace CANDebugTool.Models
         [ObservableProperty]
         private long? _timeDiffMax;
 
-        /// <summary>数据差值</summary>
+        /// <summary>关注值增量</summary>
         [ObservableProperty]
-        private double _dataDiff;
+        private double _focusedDelta;
+
+        /// <summary>关注值最小值 (null=暂无数据)</summary>
+        [ObservableProperty]
+        private double? _focusedMin;
+
+        /// <summary>关注值最大值 (null=暂无数据)</summary>
+        [ObservableProperty]
+        private double? _focusedMax;
     }
 
     /// <summary>
@@ -299,6 +307,10 @@ namespace CANDebugTool.Models
         /// <summary>大端: true=大端, false=小端</summary>
         [ObservableProperty]
         private bool _isBigEndian = true;
+
+        /// <summary>关注模式: 无=不计算, 增量=差值, 跳动=max/min</summary>
+        [ObservableProperty]
+        private string _focusMode = "无";
 
         /// <summary>属性类型: hex/flt/dbl/8U/8S/16U/16S/32U/32S/64U/64S</summary>
         [ObservableProperty]

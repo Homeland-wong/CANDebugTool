@@ -121,6 +121,37 @@ namespace CANDebugTool.Services
                 }
                 group.PreviousTimestampUs = msg.TimestampUs;
 
+                // ── 关注值计算 ──
+                var calcCfg = rule.CalcConfigs.FirstOrDefault();
+                if (calcCfg != null && calcCfg.FfCount > 0)
+                {
+                    double val = ExtractFocusedValue(msg, calcCfg);
+
+                    if (calcCfg.FocusMode == "增量")
+                    {
+                        group.CalcValue = val;
+                        if (group.Count > 1)
+                        {
+                            group.FocusedDelta = val - group.PreviousCalcValue;
+                        }
+                        group.PreviousCalcValue = val;
+                    }
+                    else if (calcCfg.FocusMode == "跳动")
+                    {
+                        group.CalcValue = val;
+                        if (group.FocusedMin == null)
+                        {
+                            group.FocusedMin = val;
+                            group.FocusedMax = val;
+                        }
+                        else
+                        {
+                            if (val < group.FocusedMin) group.FocusedMin = val;
+                            if (val > group.FocusedMax) group.FocusedMax = val;
+                        }
+                    }
+                }
+
                 // 更新报文上的归类信息
                 msg.ClassifyCode = codeBytes;
                 msg.ClassifyCodeHex = codeHex;
@@ -139,27 +170,46 @@ namespace CANDebugTool.Services
         }
 
         /// <summary>
-        /// 计算统计组数值
+        /// 从报文 Data 中按 CalcValueConfig 提取关注值
         /// </summary>
-        public double CalcGroupValue(StatisticsGroup group, CanMessage msg)
+        private static double ExtractFocusedValue(CanMessage msg, CalcValueConfig cfg)
         {
-            if (group.CalcRule == 0) return group.Count;
-
-            // 从 Data 中提取数值（根据 calcRule）
             byte[] data = msg.Data ?? new byte[8];
-            int sb = 0;
 
-            if (group.CalcRule == 1 && sb + 2 <= data.Length)
-                return (short)(data[sb] << 8 | data[sb + 1]);
-            if (group.CalcRule == 2 && sb + 2 <= data.Length)
-                return data[sb] << 8 | data[sb + 1];
-            if (group.CalcRule == 3 && sb + 4 <= data.Length)
-                return data[sb] << 24 | data[sb + 1] << 16 | data[sb + 2] << 8 | data[sb + 3];
-            if (group.CalcRule == 4 && sb + 4 <= data.Length)
-                return (uint)(data[sb] << 24 | data[sb + 1] << 16 | data[sb + 2] << 8 | data[sb + 3]);
-            if (group.CalcRule == 5 && sb + 4 <= data.Length)
-                return BitConverter.ToSingle(data, sb);
+            int ffStart = -1;
+            int ffLen = cfg.FfCount;
+            for (int i = 0; i < 8; i++)
+                if (cfg.DataMask[i] == 0xFF && ffStart < 0) { ffStart = i; break; }
+            if (ffStart < 0 || ffLen == 0) return 0;
+            if (ffStart + ffLen > 8) ffLen = 8 - ffStart;
 
+            byte[] slice = new byte[ffLen];
+            Array.Copy(data, ffStart, slice, 0, ffLen);
+
+            if (!cfg.IsBigEndian) Array.Reverse(slice);
+
+            int ff = ffLen;
+            string pt = cfg.PropertyType;
+
+            if (pt == "hex") return 0;
+            if (ff == 1) return pt == "8S" ? (sbyte)slice[0] : slice[0];
+            if (ff == 2)
+            {
+                ushort u16 = (ushort)(slice[0] << 8 | slice[1]);
+                return pt == "16S" ? (short)u16 : u16;
+            }
+            if (ff == 4)
+            {
+                if (pt == "flt") return BitConverter.ToSingle(slice, 0);
+                uint u32 = (uint)(slice[0] << 24 | slice[1] << 16 | slice[2] << 8 | slice[3]);
+                return pt == "32S" ? (int)u32 : u32;
+            }
+            if (ff == 8)
+            {
+                if (pt == "dbl") return BitConverter.ToDouble(slice, 0);
+                long u64 = (long)((ulong)slice[0] << 56 | (ulong)slice[1] << 48 | (ulong)slice[2] << 40 | (ulong)slice[3] << 32 | (ulong)slice[4] << 24 | (ulong)slice[5] << 16 | (ulong)slice[6] << 8 | slice[7]);
+                return pt == "64S" ? u64 : (double)(ulong)u64;
+            }
             return 0;
         }
 
@@ -181,7 +231,9 @@ namespace CANDebugTool.Services
                 g.TimeDiff = 0;
                 g.TimeDiffMin = null;
                 g.TimeDiffMax = null;
-                g.DataDiff = 0;
+                g.FocusedDelta = 0;
+                g.FocusedMin = null;
+                g.FocusedMax = null;
                 g.PreviousTimestampUs = 0;
                 g.PreviousCalcValue = 0;
                 OnGroupUpdated?.Invoke(g);
