@@ -17,6 +17,10 @@ namespace CANDebugTool.Models
         [ObservableProperty]
         private int _sourceGroupId;
 
+        /// <summary>关注值配置索引（-1=使用主关注值）</summary>
+        [ObservableProperty]
+        private int _sourceCalcIndex = -1;
+
         /// <summary>数据来源类型: count, calcValue, dataDiff, timeDiff</summary>
         [ObservableProperty]
         private string _sourceType = "calcValue";

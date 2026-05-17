@@ -77,19 +77,24 @@ namespace CANDebugTool.ViewModels
             if (!ValidateInput()) return;
 
             IsPeriodicSend = true;
+
+            // 释放前一次未清理的 CTS（防止快速重启泄漏）
+            _periodicCts?.Cancel();
+            _periodicCts?.Dispose();
             _periodicCts = new CancellationTokenSource();
 
+            var token = _periodicCts.Token;
             _periodicTask = Task.Run(async () =>
             {
                 try
                 {
-                    while (!_periodicCts.Token.IsCancellationRequested)
+                    while (!token.IsCancellationRequested)
                     {
                         System.Windows.Application.Current.Dispatcher.Invoke(() =>
                         {
                             ParseAndSend();
                         });
-                        await Task.Delay(PeriodicInterval, _periodicCts.Token);
+                        await Task.Delay(PeriodicInterval, token);
                     }
                 }
                 catch (OperationCanceledException)
@@ -110,6 +115,8 @@ namespace CANDebugTool.ViewModels
         private void StopPeriodicSend()
         {
             _periodicCts?.Cancel();
+            _periodicCts?.Dispose();
+            _periodicCts = null;
             _periodicTask = null;
         }
 

@@ -75,7 +75,8 @@ namespace CANDebugTool.Services
                     {
                         if (ControlCanApi.VCI_OpenDevice(dt, i, 0) == 1)
                         {
-                            string serial = "Unknown", hw = null;
+                            string serial = "Unknown";
+                            string? hw = null;
                             var bi = new VCI_BOARD_INFO
                             {
                                 str_Serial_Num = new byte[20],
@@ -301,7 +302,14 @@ namespace CANDebugTool.Services
         private void StopReceive()
         {
             _receiveCts?.Cancel();
-            try { _receiveTask?.Wait(100); } catch { }
+
+            // 等待接收循环退出（VCI_Receive 最大等待 10ms，500ms 绰绰有余）
+            if (_receiveTask != null && !_receiveTask.IsCompleted)
+            {
+                try { _receiveTask.Wait(500); } catch (OperationCanceledException) { }
+                catch (AggregateException) { }
+            }
+
             _receiveCts?.Dispose();
             _receiveCts = null;
             _receiveTask = null;

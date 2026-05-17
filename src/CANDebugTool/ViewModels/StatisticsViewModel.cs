@@ -29,6 +29,7 @@ namespace CANDebugTool.ViewModels
         private string _statusText = "待启动";
 
         private List<ClassificationRule> _activeRules = new();
+        private bool _activeRulesDirty = true;
 
         // 批量刷新：收集最新 group 状态，定时投递到 UI
         private readonly ConcurrentDictionary<int, StatisticsGroup> _pendingGroupUpdates = new();
@@ -47,11 +48,24 @@ namespace CANDebugTool.ViewModels
             };
             flushTimer.Tick += (s, e) => FlushGroupUpdates();
             flushTimer.Start();
+
+            // 监听到规则变更时标记缓存失效
+            Rules.CollectionChanged += (s, e) =>
+            {
+                _activeRulesDirty = true;
+                if (e.NewItems != null)
+                    foreach (ClassificationRule r in e.NewItems)
+                        r.PropertyChanged += (_, _) => _activeRulesDirty = true;
+            };
         }
 
         public void Classify(CanMessage msg)
         {
-            _activeRules = Rules.Where(r => r.IsClassifyMode).ToList();
+            if (_activeRulesDirty)
+            {
+                _activeRules = Rules.Where(r => r.IsClassifyMode).ToList();
+                _activeRulesDirty = false;
+            }
             if (_activeRules.Count == 0)
             {
                 msg.ClassifyCodeHex = "FF·FF·FF·FF·FF·FF·FF·FF·FF·FF·FF·FF";
@@ -61,6 +75,9 @@ namespace CANDebugTool.ViewModels
 
             _svc.Classify(msg, _activeRules);
         }
+
+        /// <summary>标记规则缓存失效（IsClassifyMode 切换时调用）</summary>
+        public void InvalidateRuleCache() => _activeRulesDirty = true;
 
         /// <summary>
         /// 接收线程回调 — 只更新缓存，不直接操作 UI
@@ -152,7 +169,10 @@ namespace CANDebugTool.ViewModels
         private void AddCalcConfig(ClassificationRule rule)
         {
             if (rule != null && rule.CalcConfigs.Count < 8)
+            {
                 rule.CalcConfigs.Add(new CalcValueConfig());
+                _svc.SyncGroupsResultCount(rule.Name, rule.CalcConfigs.Count);
+            }
         }
 
         [RelayCommand]
@@ -162,7 +182,10 @@ namespace CANDebugTool.ViewModels
             foreach (var rule in Rules)
             {
                 if (rule.CalcConfigs.Remove(config))
+                {
+                    _svc.SyncGroupsResultCount(rule.Name, rule.CalcConfigs.Count);
                     return;
+                }
             }
         }
 

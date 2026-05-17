@@ -38,7 +38,7 @@ namespace CANDebugTool.Services
                     Directory.CreateDirectory(dir);
 
                 _writer = new StreamWriter(filePath, false, Encoding.UTF8, bufferSize: 65536);
-                _writer.WriteLine("序号,μs时间戳,时间,ID,方向,类型,DLC,字节1,字节2,字节3,字节4,字节5,字节6,字节7,字节8,归类码,组号");
+                _writer.WriteLine("序号,μs时间戳,时间,ID,方向,类型,DLC,字节1,字节2,字节3,字节4,字节5,字节6,字节7,字节8,归类码,组号,关注值_1,增量_1,最小_1,最大_1,关注值_2,增量_2,最小_2,最大_2,关注值_3,增量_3,最小_3,最大_3,关注值_4,增量_4,最小_4,最大_4,关注值_5,增量_5,最小_5,最大_5,关注值_6,增量_6,最小_6,最大_6,关注值_7,增量_7,最小_7,最大_7,关注值_8,增量_8,最小_8,最大_8");
                 _currentPath = filePath;
 
                 _writeCts = new CancellationTokenSource();
@@ -60,14 +60,73 @@ namespace CANDebugTool.Services
             try
             {
                 var d = msg.Data;
-                string line =
-                    $"{msg.SequenceNumber},{msg.TimestampUs},{msg.Timestamp:HH:mm:ss.fff}," +
-                    $"{msg.IdDisplay},{msg.DirectionCn},{msg.FrameType},{msg.DataLen}," +
-                    $"{d[0]:X2},{d[1]:X2},{d[2]:X2},{d[3]:X2},{d[4]:X2},{d[5]:X2},{d[6]:X2},{d[7]:X2}," +
-                    $"{msg.ClassifyCodeHex},{msg.GroupId}";
+                var sb = new StringBuilder(256);
 
-                // 非阻塞入队；队列满时丢弃而非阻塞
-                _writeQueue.TryAdd(line);
+                sb.Append(msg.SequenceNumber);
+                sb.Append(',');
+                sb.Append(msg.TimestampUs);
+                sb.Append(',');
+                sb.AppendFormat("{0:HH:mm:ss.fff}", msg.Timestamp);
+                sb.Append(',');
+                sb.Append(msg.IdDisplay);
+                sb.Append(',');
+                sb.Append(msg.DirectionCn);
+                sb.Append(',');
+                sb.Append(msg.FrameType);
+                sb.Append(',');
+                sb.Append(msg.DataLen);
+                sb.Append(',');
+                for (int i = 0; i < 8; i++)
+                {
+                    if (d != null && i < d.Length)
+                        sb.AppendFormat("{0:X2}", d[i]);
+                    sb.Append(',');
+                }
+                sb.Append(msg.ClassifyCodeHex);
+                sb.Append(',');
+                sb.Append(msg.GroupId);
+
+                // 写入关注值结果列
+                if (msg.GroupId >= 0 && !string.IsNullOrEmpty(msg.ClassifyCodeHex))
+                {
+                    var group = ClassificationService.Instance.GetGroup(msg.ClassifyCodeHex);
+                    if (group != null)
+                    {
+                        for (int i = 0; i < 8; i++)
+                        {
+                            if (i < group.Results.Count)
+                            {
+                                var r = group.Results[i];
+                                if (r.FocusMode == "无") sb.Append(",-,,-,-");
+                                else
+                                {
+                                    sb.Append(',');
+                                    sb.Append(r.CalcValue.ToString("F2"));
+                                    sb.Append(',');
+                                    sb.Append(r.FocusMode == "增量" ? r.FocusedDelta.ToString("F2") : "-");
+                                    sb.Append(',');
+                                    sb.Append(r.FocusMode == "跳动" && r.FocusedMin.HasValue ? r.FocusedMin.Value.ToString("F2") : "-");
+                                    sb.Append(',');
+                                    sb.Append(r.FocusMode == "跳动" && r.FocusedMax.HasValue ? r.FocusedMax.Value.ToString("F2") : "-");
+                                }
+                            }
+                            else
+                            {
+                                sb.Append(",,,,");
+                            }
+                        }
+                    }
+                    else
+                    {
+                        sb.Append(new string(',', 32));
+                    }
+                }
+                else
+                {
+                    sb.Append(new string(',', 32));
+                }
+
+                _writeQueue.TryAdd(sb.ToString());
             }
             catch (Exception ex)
             {

@@ -231,9 +231,6 @@ namespace CANDebugTool.Models
         [ObservableProperty]
         private double _calcValue;
 
-        /// <summary>前一条报文的计算值（用于差值）</summary>
-        public double PreviousCalcValue;
-
         /// <summary>前一条报文的时间戳（用于时间差）</summary>
         public long PreviousTimestampUs;
 
@@ -249,6 +246,10 @@ namespace CANDebugTool.Models
         [ObservableProperty]
         private long? _timeDiffMax;
 
+        /// <summary>关注模式: 无/增量/跳动</summary>
+        [ObservableProperty]
+        private string _focusMode = "无";
+
         /// <summary>关注值增量</summary>
         [ObservableProperty]
         private double _focusedDelta;
@@ -260,6 +261,105 @@ namespace CANDebugTool.Models
         /// <summary>关注值最大值 (null=暂无数据)</summary>
         [ObservableProperty]
         private double? _focusedMax;
+
+        // 当关注值变化时刷新显示文本
+        partial void OnFocusedDeltaChanged(double value) => OnPropertyChanged(nameof(FocusedDeltaDisplay));
+        partial void OnFocusedMinChanged(double? value) => OnPropertyChanged(nameof(FocusedMinDisplay));
+        partial void OnFocusedMaxChanged(double? value) => OnPropertyChanged(nameof(FocusedMaxDisplay));
+        partial void OnFocusModeChanged(string value)
+        {
+            OnPropertyChanged(nameof(FocusedDeltaDisplay));
+            OnPropertyChanged(nameof(FocusedMinDisplay));
+            OnPropertyChanged(nameof(FocusedMaxDisplay));
+        }
+
+        /// <summary>关注值增量显示文本（无模式时显示 -）</summary>
+        public string FocusedDeltaDisplay => FocusMode == "增量" ? FocusedDelta.ToString("F2") : "-";
+
+        /// <summary>关注值最小值显示文本（无模式时显示 -）</summary>
+        public string FocusedMinDisplay => FocusMode == "跳动" && FocusedMin.HasValue ? FocusedMin.Value.ToString("F2") : "-";
+
+        /// <summary>关注值最大值显示文本（无模式时显示 -）</summary>
+        public string FocusedMaxDisplay => FocusMode == "跳动" && FocusedMax.HasValue ? FocusedMax.Value.ToString("F2") : "-";
+
+        /// <summary>多条关注值的计算结果列表</summary>
+        public ObservableCollection<CalcResult> Results { get; } = new();
+
+        /// <summary>
+        /// 同步 Results[0] 到单值属性（向后兼容 UI 绑定）
+        /// </summary>
+        public void SyncFromResults()
+        {
+            if (Results.Count > 0)
+            {
+                var r0 = Results[0];
+                CalcValue = r0.CalcValue;
+                FocusMode = r0.FocusMode;
+                FocusedDelta = r0.FocusedDelta;
+                FocusedMin = r0.FocusedMin;
+                FocusedMax = r0.FocusedMax;
+            }
+            else
+            {
+                CalcValue = 0;
+                FocusMode = "无";
+                FocusedDelta = 0;
+                FocusedMin = null;
+                FocusedMax = null;
+            }
+        }
+    }
+
+    /// <summary>
+    /// 单条关注值计算结果
+    /// </summary>
+    public partial class CalcResult : ObservableObject
+    {
+        [ObservableProperty]
+        private int _configIndex;
+
+        [ObservableProperty]
+        private string _propertyType = "hex";
+
+        [ObservableProperty]
+        private string _focusMode = "无";
+
+        [ObservableProperty]
+        private double _calcValue;
+
+        /// <summary>前一条报文的计算值（用于帧间差值）</summary>
+        public double PreviousCalcValue;
+
+        [ObservableProperty]
+        private double _focusedDelta;
+
+        [ObservableProperty]
+        private double? _focusedMin;
+
+        [ObservableProperty]
+        private double? _focusedMax;
+
+        partial void OnFocusedDeltaChanged(double value) => OnPropertyChanged(nameof(FocusedDeltaDisplay));
+        partial void OnFocusedMinChanged(double? value) => OnPropertyChanged(nameof(FocusedMinDisplay));
+        partial void OnFocusedMaxChanged(double? value) => OnPropertyChanged(nameof(FocusedMaxDisplay));
+        partial void OnFocusModeChanged(string value)
+        {
+            OnPropertyChanged(nameof(FocusedDeltaDisplay));
+            OnPropertyChanged(nameof(FocusedMinDisplay));
+            OnPropertyChanged(nameof(FocusedMaxDisplay));
+        }
+
+        /// <summary>关注值增量显示文本（无模式时显示 -）</summary>
+        public string FocusedDeltaDisplay => FocusMode == "增量" ? $"Δ{FocusedDelta:F2}" : "-";
+
+        /// <summary>关注值最小值显示文本（无模式时显示 -）</summary>
+        public string FocusedMinDisplay => FocusMode == "跳动" && FocusedMin.HasValue ? $"▼{FocusedMin.Value:F2}" : "-";
+
+        /// <summary>关注值最大值显示文本（无模式时显示 -）</summary>
+        public string FocusedMaxDisplay => FocusMode == "跳动" && FocusedMax.HasValue ? $"▲{FocusedMax.Value:F2}" : "-";
+
+        /// <summary>属性类型显示名</summary>
+        public string PropertyTypeDisplay => CalcValueConfig.TypeDisplayName(PropertyType);
     }
 
     /// <summary>
