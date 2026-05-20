@@ -183,6 +183,8 @@
                     <!-- 掩码配置工具栏 -->
                     <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="4,0,4,2">
                         <Button Content="掩码规则" Style="{StaticResource SecondaryButton}" Command="{Binding StatisticsVM.ToggleRulePanelCommand}" Padding="8,2"/>
+                        <Button Content="保存规则" Style="{StaticResource SecondaryButton}" Command="{Binding StatisticsVM.SaveRulesCommand}" Padding="8,2" Margin="4,0,0,0"/>
+                        <Button Content="加载规则" Style="{StaticResource SecondaryButton}" Command="{Binding StatisticsVM.LoadRulesCommand}" Padding="8,2" Margin="4,0,0,0"/>
                         <TextBlock Text="{Binding StatisticsVM.StatusText}" VerticalAlignment="Center" Foreground="#666" Margin="8,0,0,0"/>
                     </StackPanel>
                     <!-- 规则编辑面板（可折叠） -->

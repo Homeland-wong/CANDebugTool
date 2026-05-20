@@ -118,6 +118,7 @@ namespace CANDebugTool.ViewModels
         private void OnWorkspaceChanged(string path)
         {
             _currentWorkPath = path;
+            StatisticsVM.WorkspacePath = path;
             StatusText = $"工作区已就绪: {path}";
         }
 
