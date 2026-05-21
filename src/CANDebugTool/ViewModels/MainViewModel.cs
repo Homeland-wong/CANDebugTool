@@ -147,6 +147,7 @@ namespace CANDebugTool.ViewModels
             if (IsPaused) return;
 
             StatisticsVM.Classify(msg);
+            CurveVM.FeedData(msg);
             _storageService.WriteMessage(msg);
 
             _totalRx++;

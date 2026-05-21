@@ -1,3 +1,6 @@
+using System;
+using System.Collections.ObjectModel;
+using System.Windows.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace CANDebugTool.Models
@@ -18,11 +21,11 @@ namespace CANDebugTool.Models
 
         /// <summary>数据来源：统计组号</summary>
         [ObservableProperty]
-        private int _sourceGroupId;
+        private int _sourceGroupId = -1;
 
         /// <summary>关注值配置索引（-1=使用主关注值）</summary>
         [ObservableProperty]
-        private int _sourceCalcIndex = -1;
+        private int _sourceCalcIndex;
 
         /// <summary>数据来源类型: count, calcValue, dataDiff, timeDiff</summary>
         [ObservableProperty]
@@ -34,7 +37,7 @@ namespace CANDebugTool.Models
         [ObservableProperty]
         private double _lowerLimit;
 
-        /// <summary>曲线颜色 (ARGB)</summary>
+        /// <summary>曲线颜色 (ARGB hex)</summary>
         [ObservableProperty]
         private string _color = "#0078D4";
 
@@ -47,5 +50,32 @@ namespace CANDebugTool.Models
 
         /// <summary>最大缓存点数</summary>
         public int MaxCachePoints => DisplayWidthPoints + 200;
+
+        /// <summary>可选的关注值索引列表（由 CurveViewModel 根据所选组号更新）</summary>
+        public ObservableCollection<int> AvailableCalcIndices { get; } = new();
+
+        /// <summary>从 Color 字符串解析 SolidColorBrush</summary>
+        public SolidColorBrush Brush
+        {
+            get
+            {
+                try
+                {
+                    var color = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(Color);
+                    return new SolidColorBrush(color);
+                }
+                catch { return new SolidColorBrush(System.Windows.Media.Colors.DodgerBlue); }
+            }
+        }
+
+        partial void OnSourceGroupIdChanged(int value)
+        {
+            // Clamp SourceCalcIndex when group changes — will be refreshed by ViewModel
+        }
+
+        partial void OnColorChanged(string value)
+        {
+            OnPropertyChanged(nameof(Brush));
+        }
     }
 }
