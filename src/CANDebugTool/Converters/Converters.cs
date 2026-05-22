@@ -58,6 +58,18 @@ namespace CANDebugTool.Converters
     }
 
     /// <summary>
+    /// 引用相等比较器 (MultiValueConverter): 两个对象是否引用相等
+    /// </summary>
+    public class EqualityConverter : IMultiValueConverter
+    {
+        public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
+            => values.Length == 2 && ReferenceEquals(values[0], values[1]);
+
+        public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
+            => throw new NotImplementedException();
+    }
+
+    /// <summary>
     /// Bool → Opacity: true=1.0, false=0.0
     /// </summary>
     public class BoolToOpacityConverter : IValueConverter

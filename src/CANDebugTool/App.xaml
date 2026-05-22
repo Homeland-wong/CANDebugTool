@@ -16,6 +16,7 @@
             <converters:BoolToOpacityConverter x:Key="BoolToOpacityConverter"/>
             <converters:ClassifyModeToTextConverter x:Key="ClassifyModeToTextConverter"/>
             <converters:CalcTypeToDisplayConverter x:Key="CalcTypeToDisplayConverter"/>
+            <converters:EqualityConverter x:Key="EqualityConverter"/>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

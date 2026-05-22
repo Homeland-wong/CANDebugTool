@@ -3,6 +3,8 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
+using CANDebugTool.Models;
 using CANDebugTool.ViewModels;
 
 namespace CANDebugTool.Views
@@ -18,6 +20,34 @@ namespace CANDebugTool.Views
         {
             base.OnClosed(e);
             Application.Current.Shutdown();
+        }
+
+        /// <summary>
+        /// 点击曲线选择栏中的曲线项 → 设为当前选中曲线（点击勾选框时仅切换使能，不选中）
+        /// </summary>
+        private void CurveItem_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            // 如果点击的是 CheckBox 本身或其内部元素，不拦截（让勾选框正常切换使能）
+            if (e.OriginalSource is DependencyObject d &&
+                FindVisualParent<CheckBox>(d) != null)
+                return;
+
+            if (sender is FrameworkElement fe && fe.DataContext is CurveConfig curve)
+            {
+                if (DataContext is MainViewModel vm)
+                    vm.CurveVM.SelectedCurve = curve;
+            }
+        }
+
+        private static T? FindVisualParent<T>(DependencyObject child) where T : DependencyObject
+        {
+            var parent = child;
+            while (parent != null)
+            {
+                if (parent is T t) return t;
+                parent = System.Windows.Media.VisualTreeHelper.GetParent(parent);
+            }
+            return null;
         }
 
         /// <summary>

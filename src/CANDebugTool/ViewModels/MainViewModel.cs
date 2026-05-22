@@ -103,6 +103,10 @@ namespace CANDebugTool.ViewModels
             WorkspaceVM = new WorkspaceViewModel();
             WorkspaceVM.OnWorkspaceChanged += OnWorkspaceChanged;
 
+            // 同步掩码规则到曲线 VM
+            CurveVM.SyncRules(StatisticsVM.Rules);
+            StatisticsVM.Rules.CollectionChanged += (_, _) => CurveVM.SyncRules(StatisticsVM.Rules);
+
             _deviceScanTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
             _deviceScanTimer.Tick += (s, e) => ScanDevices();
 

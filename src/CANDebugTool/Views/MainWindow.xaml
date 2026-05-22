@@ -489,7 +489,8 @@
                         </StackPanel>
                         <!-- 曲线图表控件 -->
                         <views:CurveChart Grid.Row="2" Margin="4"
-                                         Curves="{Binding CurveVM.Curves}"/>
+                                         Curves="{Binding CurveVM.Curves}"
+                                         SelectedCurve="{Binding CurveVM.SelectedCurve}"/>
                     </Grid>
                 </Border>
 
@@ -506,28 +507,62 @@
                             <ItemsControl ItemsSource="{Binding CurveVM.Curves}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <Border Margin="2,2" Padding="6,4" BorderBrush="#E0E0E0" BorderThickness="1" CornerRadius="3">
+                                        <Border Margin="2,2" Padding="6,4" BorderBrush="#E0E0E0" BorderThickness="1" CornerRadius="3"
+                                                Cursor="Hand" Background="Transparent"
+                                                PreviewMouseLeftButtonDown="CurveItem_PreviewMouseLeftButtonDown">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="BorderBrush" Value="#E0E0E0"/>
+                                                    <Setter Property="BorderThickness" Value="1"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Value="True">
+                                                            <DataTrigger.Binding>
+                                                                <MultiBinding Converter="{StaticResource EqualityConverter}">
+                                                                    <Binding Path="."/>
+                                                                    <Binding Path="DataContext.CurveVM.SelectedCurve" RelativeSource="{RelativeSource AncestorType=Window}"/>
+                                                                </MultiBinding>
+                                                            </DataTrigger.Binding>
+                                                            <Setter Property="BorderBrush" Value="#0078D4"/>
+                                                            <Setter Property="BorderThickness" Value="2"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
                                             <StackPanel>
-                                                <CheckBox IsChecked="{Binding Enabled}" Content="{Binding Name}" FontWeight="SemiBold"/>
+                                                <StackPanel Orientation="Horizontal">
+                                                    <CheckBox IsChecked="{Binding Enabled}" VerticalAlignment="Center"/>
+                                                    <TextBlock Text="{Binding Name}" VerticalAlignment="Center" Margin="4,0,0,0" FontSize="11">
+                                                        <TextBlock.Style>
+                                                            <Style TargetType="TextBlock">
+                                                                <Setter Property="FontWeight" Value="Normal"/>
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Value="True">
+                                                                        <DataTrigger.Binding>
+                                                                            <MultiBinding Converter="{StaticResource EqualityConverter}">
+                                                                                <Binding Path="."/>
+                                                                                <Binding Path="DataContext.CurveVM.SelectedCurve" RelativeSource="{RelativeSource AncestorType=Window}"/>
+                                                                            </MultiBinding>
+                                                                        </DataTrigger.Binding>
+                                                                        <Setter Property="FontWeight" Value="Bold"/>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </TextBlock.Style>
+                                                    </TextBlock>
+                                                </StackPanel>
                                                 <StackPanel Orientation="Horizontal" Margin="20,2,0,0">
                                                     <TextBlock Text="上限:" FontSize="10" Foreground="#888" VerticalAlignment="Center"/>
-                                                    <TextBox Width="60" Text="{Binding UpperLimit, UpdateSourceTrigger=PropertyChanged}" FontSize="10" Margin="4,0,0,0"/>
-                                                </StackPanel>
-                                                <StackPanel Orientation="Horizontal" Margin="20,2,0,0">
-                                                    <TextBlock Text="下限:" FontSize="10" Foreground="#888" VerticalAlignment="Center"/>
-                                                    <TextBox Width="60" Text="{Binding LowerLimit, UpdateSourceTrigger=PropertyChanged}" FontSize="10" Margin="4,0,0,0"/>
-                                                </StackPanel>
-                                                <StackPanel Orientation="Horizontal" Margin="20,2,0,0">
-                                                    <TextBlock Text="组号:" FontSize="10" Foreground="#888" VerticalAlignment="Center"/>
-                                                    <ComboBox Width="75" FontSize="10"
-                                                              ItemsSource="{Binding DataContext.CurveVM.AvailableGroups, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                    <TextBox Width="55" Text="{Binding UpperLimit, UpdateSourceTrigger=PropertyChanged}" FontSize="10" Margin="2,0,0,0"/>
+                                                    <TextBlock Text="下限:" FontSize="10" Foreground="#888" VerticalAlignment="Center" Margin="6,0,0,0"/>
+                                                    <TextBox Width="55" Text="{Binding LowerLimit, UpdateSourceTrigger=PropertyChanged}" FontSize="10" Margin="2,0,0,0"/>
+                                                    <TextBlock Text="组号:" FontSize="10" Foreground="#888" VerticalAlignment="Center" Margin="6,0,0,0"/>
+                                                    <ComboBox Width="70" FontSize="10"
+                                                              ItemsSource="{Binding DataContext.CurveVM.AvailableRuleOptions, RelativeSource={RelativeSource AncestorType=Window}}"
                                                               SelectedValue="{Binding SourceGroupId}"
-                                                              SelectedValuePath="GroupId"
+                                                              SelectedValuePath="Value"
                                                               DisplayMemberPath="DisplayText"/>
-                                                </StackPanel>
-                                                <StackPanel Orientation="Horizontal" Margin="20,2,0,0">
-                                                    <TextBlock Text="关注点:" FontSize="10" Foreground="#888" VerticalAlignment="Center"/>
-                                                    <ComboBox Width="45" FontSize="10"
+                                                    <TextBlock Text="关注点:" FontSize="10" Foreground="#888" VerticalAlignment="Center" Margin="4,0,0,0"/>
+                                                    <ComboBox Width="40" FontSize="10"
                                                               ItemsSource="{Binding AvailableCalcIndices}"
                                                               SelectedItem="{Binding SourceCalcIndex}"/>
                                                 </StackPanel>

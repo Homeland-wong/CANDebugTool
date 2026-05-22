@@ -17,10 +17,20 @@ namespace CANDebugTool.Views
             DependencyProperty.Register(nameof(Curves), typeof(IEnumerable<CurveConfig>), typeof(CurveChart),
                 new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender));
 
+        public static readonly DependencyProperty SelectedCurveProperty =
+            DependencyProperty.Register(nameof(SelectedCurve), typeof(CurveConfig), typeof(CurveChart),
+                new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender));
+
         public IEnumerable<CurveConfig>? Curves
         {
             get => (IEnumerable<CurveConfig>?)GetValue(CurvesProperty);
             set => SetValue(CurvesProperty, value);
+        }
+
+        public CurveConfig? SelectedCurve
+        {
+            get => (CurveConfig?)GetValue(SelectedCurveProperty);
+            set => SetValue(SelectedCurveProperty, value);
         }
 
         private const double MarginLeft = 50;
@@ -61,10 +71,11 @@ namespace CANDebugTool.Views
             double chartH = ActualHeight - MarginTop - MarginBottom;
             if (chartW < 1 || chartH < 1) return;
 
+            var sel = SelectedCurve;
             var enabledCurves = curves.Where(c => c.Enabled).ToList();
             if (enabledCurves.Count == 0) { _hoverText = null; return; }
 
-            (double yMin, double yMax) = CalcYRange(enabledCurves);
+            (double yMin, double yMax) = CalcYRange(enabledCurves, sel);
 
             double bestDist = double.MaxValue;
             string? bestText = null;
@@ -97,8 +108,7 @@ namespace CANDebugTool.Views
                     if (dist < bestDist)
                     {
                         bestDist = dist;
-                        long timeMs = tick / 10;
-                        bestText = $"{curve.Name}\n值: {val:F3}\n时间: {timeMs / 1000}.{timeMs % 1000:D3}s";
+                        bestText = $"{curve.Name}\n值: {val:F3}\n时间: {tick} μs";
                         bestScreenPt = new Point(sx, sy);
                     }
                 }
@@ -138,9 +148,10 @@ namespace CANDebugTool.Views
             if (chartW < 1 || chartH < 1) return;
 
             var curves = Curves;
+            var sel = SelectedCurve;  // snapshot on UI thread
             var enabledCurves = curves?.Where(c => c.Enabled).ToList() ?? new List<CurveConfig>();
 
-            (double yMin, double yMax) = CalcYRange(enabledCurves);
+            (double yMin, double yMax) = CalcYRange(enabledCurves, sel);
             double yRange = yMax - yMin;
             if (yRange <= 0) yRange = 1;
 
@@ -282,15 +293,26 @@ namespace CANDebugTool.Views
             }
         }
 
-        private static (double yMin, double yMax) CalcYRange(List<CurveConfig> enabledCurves)
+        private static (double yMin, double yMax) CalcYRange(List<CurveConfig> enabledCurves, CurveConfig? selectedCurve)
         {
             if (enabledCurves.Count == 0) return (0, 100);
-            double yMin = enabledCurves.Min(c => c.LowerLimit);
-            double yMax = enabledCurves.Max(c => c.UpperLimit);
-            if (yMin >= yMax) yMax = yMin + 1;
-            // Add 5% padding
-            double pad = (yMax - yMin) * 0.05;
-            return (yMin - pad, yMax + pad);
+
+            // 优先使用选中曲线的上下限
+            if (selectedCurve != null && selectedCurve.Enabled)
+            {
+                double yMin = selectedCurve.LowerLimit;
+                double yMax = selectedCurve.UpperLimit;
+                if (yMin >= yMax) yMax = yMin + 1;
+                double pad = (yMax - yMin) * 0.05;
+                return (yMin - pad, yMax + pad);
+            }
+
+            // 回退：所有启用曲线的合并范围
+            double cyMin = enabledCurves.Min(c => c.LowerLimit);
+            double cyMax = enabledCurves.Max(c => c.UpperLimit);
+            if (cyMin >= cyMax) cyMax = cyMin + 1;
+            double cpad = (cyMax - cyMin) * 0.05;
+            return (cyMin - cpad, cyMax + cpad);
         }
     }
 }
